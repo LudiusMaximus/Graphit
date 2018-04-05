@@ -1,0 +1,17 @@
+## Interface: 70300
+## Title: Graphit
+## Notes: Lets you fine-tune your graphics settings, store them as presets and assign these to world zones.
+## Author: Ludius
+## Version: 0.1
+## OptionalDeps: Ace3
+## SavedVariables:GraphitDB
+
+
+--Embedded libraries
+embeds.xml
+
+--Locale Translations
+Locales\Locales.xml
+
+
+Core.lua
