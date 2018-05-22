@@ -7,8 +7,21 @@ Graphit.version = "1.0"
 
 
 
+Graphit.availableSettingsIndex = {
+  "shadowMode",
+  "shadowSoft",
+  "shadowTextureSize",
+  "worldBaseMip",
+  "terrainMipLevel",
+  "componentTextureLevel",
+  "graphicsTextureFiltering",
+  "projectedTextures"
+}
+
 Graphit.availableSettings = {
 
+
+  -- Shadow settings
   shadowMode = {
     values = {
       "0.000000", "1.000000", "2.000000", "3.000000", "4.000000"
@@ -37,8 +50,69 @@ Graphit.availableSettings = {
       "1024", "2048"
     },
     tooltip = L["shadowTextureSizeTooltip"]
+  },
+  
+  -- Texture resolution settings
+  worldBaseMip = {
+    values = {
+      "2.000000", "1.000000", "0.000000" 
+    },
+    valueNames = {
+      "low", "medium", "high"
+    },
+    tooltip = L["worldBaseMipTooltip"]
+  },
+  
+  terrainMipLevel = {
+    values = {
+      "1.000000", "0.000000"
+    },
+    valueNames = {
+      "low", "high"
+    },
+    tooltip = L["terrainMipLevelTooltip"]
+  },
+  
+  componentTextureLevel = {
+    values = {
+      "1.000000", "0.000000"
+    },
+    valueNames = {
+      "low", "high"
+    },
+    tooltip = L["componentTextureLevelTooltip"]
+  },
+  
+  
+  
+  graphicsTextureFiltering = {
+    values = {
+      "1", "2", "3", "4", "5", "6"
+    },
+    valueNames = {
+      "Bilinear", "Trilinear", "2x Anisotropic", "4x Anisotropic", "8x Anisotropic", "16x Anisotropic"
+    },
+    tooltip = L["graphicsTextureFilteringTooltip"]
+  },
+  
+  projectedTextures = {
+    values = {
+      "0.000000", "1.000000"
+    },
+    valueNames = {
+      "off", "on"
+    },
+    tooltip = L["projectedTexturesTooltip"]
   }--,
   
+  
+  
+  
+  
+  
+  
+  
+
   -- -- Multisampling AA quality
   -- MSAAQuality = {
     -- values = {
@@ -125,11 +199,16 @@ function Graphit:SetSetting(cVarName, newValueIndex)
   -- Update the GUI label.
   self:UpdateSettingValueLabel(cVarName, newValueIndex, self.valueLabels[cVarName])
   
-  self:Print ("Setting " .. cVarName .. " to " .. newValue)
+  -- self:Print ("Setting " .. cVarName .. " to " .. newValue)
   
   if ((cVarName == "shadowMode") or (cVarName == "shadowSoft") or (cVarName == "shadowTextureSize")) then
     self:CheckForShadowFactoryPreset()
   end
+  
+  if ((cVarName == "worldBaseMip") or (cVarName == "terrainMipLevel") or (cVarName == "componentTextureLevel")) then
+    self:CheckForTextureResolutionFactoryPreset()
+  end
+  
   
 end
 
@@ -184,6 +263,43 @@ function Graphit:CheckForShadowFactoryPreset()
 end
 
 
+-- Check if the current combination of texture resolution settings is one of WOW's "factory" graphicsTextureResolution defaults. 
+function Graphit:CheckForTextureResolutionFactoryPreset()
+
+  worldBaseMipValue = GetCVar("worldBaseMip")
+  terrainMipLevelValue = GetCVar("terrainMipLevel")
+  componentTextureLevelValue = GetCVar("componentTextureLevel")
+
+  -- print (worldBaseMipValue .. " " .. terrainMipLevelValue .. " " .. componentTextureLevelValue)
+  
+  -- High
+  if ((tonumber(worldBaseMipValue) == 0) and (tonumber(terrainMipLevelValue) == 0) and (tonumber(componentTextureLevelValue) == 0)) then
+    -- print ("High")
+    return SetCVar("graphicsTextureResolution", 3)
+  end
+  -- Fair
+  if ((tonumber(worldBaseMipValue) == 1) and (tonumber(terrainMipLevelValue) == 1) and (tonumber(componentTextureLevelValue) == 1)) then
+    -- print ("Fair")
+    return SetCVar("graphicsTextureResolution", 2)
+  end
+  -- Low
+  if ((tonumber(worldBaseMipValue) == 2) and (tonumber(terrainMipLevelValue) == 1) and (tonumber(componentTextureLevelValue) == 1)) then
+    -- print ("Low")
+    return SetCVar("graphicsTextureResolution", 1)
+  end
+  
+  
+  -- print ("Custom")
+  SetCVar("graphicsTextureResolution", 0)
+  -- Must set the variables again, because setting graphicsTextureResolution to 0 will reset the others.
+  SetCVar("worldBaseMip", worldBaseMipValue)
+  SetCVar("terrainMipLevel", terrainMipLevelValue)
+  SetCVar("componentTextureLevel", componentTextureLevelValue)
+  
+end
+
+
+
 
 
 function Graphit:UpdateSettingValueLabel(cVarName, newValueIndex, label)
@@ -206,7 +322,8 @@ function Graphit:TryToSetSetting(cVarName, increase)
   
   local numberOfSettings = 0
   for k,v in pairs(self.availableSettings[cVarName].values) do
-     numberOfSettings = numberOfSettings + 1
+    -- print (cVarName .. ": " .. k .. ", " .. v)
+    numberOfSettings = numberOfSettings + 1
   end
   
   -- print (valueIndex .. " (" .. self.availableSettings[cVarName].values[valueIndex] .. ") is a index " .. valueIndex)
@@ -231,7 +348,6 @@ function Graphit:TryToSetSetting(cVarName, increase)
   -- Set the next lower value.
   self:SetSetting(cVarName, valueIndex-1)
   
-
 end
 
 
@@ -266,7 +382,8 @@ function Graphit:OnEnable()
   self.frameBuilt = false
   
   self:BuildFrame()
-  self:HideFrame()
+  -- DEBUG: Uncomment this to have graphit window shown after reloading UI.
+  -- self:HideFrame()
 end
 
 function Graphit:OnDisable()
@@ -344,7 +461,7 @@ function Graphit:BuildFrame()
   local mainFrame = CreateFrame("Frame", nil, UIParent)
   mainFrame:ClearAllPoints()
   mainFrame:SetPoint("TOPRIGHT", "Minimap", "BOTTOMLEFT", 40, -30)
-  mainFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+  mainFrame:SetFrameStrata("FULLSCREEN")
   mainFrame:SetBackdrop({ bgFile = "Interface/Tooltips/UI-Tooltip-Background", 
                         edgeFile = "Interface/DialogFrame/UI-DialogBox-Border", 
                         tile = true, tileSize = 16, edgeSize = 16, 
@@ -483,10 +600,9 @@ function Graphit:BuildFrame()
   self.mainFrame.scrollFrame:SetScrollChild(self.mainFrame.scrollFrame.contentFrame)
   
   
-  local settingNumber = 0
-  for cVarName in pairs(self.availableSettings) do
-    self:PutSetting(cVarName, settingNumber, self.mainFrame.scrollFrame.contentFrame)
-    settingNumber = settingNumber + 1
+  for k,v in pairs(self.availableSettingsIndex) do
+    -- print (v .. " is at " .. k)
+    self:PutSetting(v, k-1, self.mainFrame.scrollFrame.contentFrame)
   end
   
   
@@ -501,7 +617,6 @@ function Graphit:BuildFrame()
   
   
   -- Resize button.
- 
   local resizeButton = CreateFrame("Button", nil, self.mainFrame, "UIPanelButtonTemplate")
   resizeButton:SetWidth(150)
   resizeButton:SetHeight(20)
@@ -523,7 +638,7 @@ function Graphit:BuildFrame()
     end
   )
   
-  resizeButton:SetFrameStrata("TOOLTIP")
+  resizeButton:SetFrameStrata("FULLSCREEN_DIALOG")
   
   self.mainFrame.resizeButton = resizeButton
   
@@ -640,10 +755,10 @@ end
 function Graphit:PossibleSettingsUpdate(event, arg1)
   -- self:Print("PossibleSettingsUpdate: " .. event .. "  "  .. arg1)
   
-  for cVarName in pairs(self.availableSettings) do
-    self:UpdateSettingValueLabel(cVarName, self:GetValueIndex(cVarName), self.valueLabels[cVarName])
+  for k,v in pairs(self.availableSettingsIndex) do
+    self:UpdateSettingValueLabel(v, self:GetValueIndex(v), self.valueLabels[v])
   end
-  
+
 end
 
 
