@@ -107,57 +107,7 @@ Graphit.availableSettings = {
   
   
   
-  
-  
-  
-  
-  
 
-  -- -- Multisampling AA quality
-  -- MSAAQuality = {
-    -- values = {
-      -- "0", "1,0", "2,0", "3,0"
-    -- },
-    -- valueNames = {
-      -- "None", "2x", "4x", "8x"
-    -- },
-    -- tooltip = L["TODO"]
-  -- }
-  
-  
-  -- graphicsDepthEffects = {
-    -- values = {
-      -- 1, 2, 3, 4
-    -- },
-    -- valueNames = {
-      -- "Disabled", "Low", "Good", "High"
-    -- },
-    -- tooltip = L["graphicsDepthEffects"]
-  -- },
-  
-  -- ffxAntiAliasingMode = {
-    -- values = {
-      -- 0, 1, 2, 3
-    -- },
-    -- valueNames = {
-      -- "None", "FXAA Low", "FXAA High", "CMAA"
-    -- },
-    -- tooltip = L["ffxAntiAliasingMode"]
-  -- },
-
-  -- graphicsLightingQuality = {
-    -- values = {
-      -- 1, 2, 3
-    -- },
-    -- valueNames = {
-      -- "Low", "Good", "High"
-    -- },
-    -- tooltip = L["TODO"]
-  -- },
-  
-  
-  
-  
 
 }
 
@@ -311,15 +261,14 @@ function Graphit:UpdateSettingValueLabel(cVarName, newValueIndex, label)
   
   local newValueName = self.availableSettings[cVarName].valueNames[newValueIndex]
   if newValueName ~= true then
-    label:SetText("|c00ffffff" .. newValueName )
+    label:SetText("|cffffffff" .. newValueName )
   else
-    label:SetText("|c00ffffff" .. newValue )
+    label:SetText("|cffffffff" .. newValue )
   end
   
   -- Also update the status bar.
   self.valueStatusBars[cVarName]:SetValue(newValueIndex)
   
-
 end
 
 
@@ -416,8 +365,8 @@ local function Graphit_UpdateFramerate(self, elapsed)
   
   if Graphit_timeSinceLastUpdate > .25 then	
     local avgFps = Graphit_fpsSumSinceLastUpdate/Graphit_fpsNumSinceLastUpdate
-    Graphit_titleFrame.fpsint:SetText("|c00ffffff" .. floor(avgFps) )
-    Graphit_titleFrame.fpsdec:SetText("|c00ffffff." .. floor(10*avgFps)%10 )
+    Graphit_titleFrame.fpsint:SetText("|cffffffff" .. floor(avgFps) )
+    Graphit_titleFrame.fpsdec:SetText("|cffffffff." .. floor(10*avgFps)%10 )
     Graphit_timeSinceLastUpdate = 0
     Graphit_fpsSumSinceLastUpdate = 0
     Graphit_fpsNumSinceLastUpdate = 0
@@ -523,12 +472,12 @@ function Graphit:BuildFrame()
   
   titleFrame.title = titleFrame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
   titleFrame.title:SetPoint("TOPLEFT", titleFrame, "TOPLEFT", 12, -8)
-  titleFrame.title:SetText("|c00ffffffGRAPHIT " .. self.version)	
+  titleFrame.title:SetText("|cffffffffGRAPHIT " .. self.version)	
 
   -- Set the FPS display.
   titleFrame.fps = titleFrame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
   titleFrame.fps:SetPoint("LEFT", titleFrame.title, "RIGHT", 28, 0)
-  titleFrame.fps:SetText("|c00ffffffFPS :")
+  titleFrame.fps:SetText("|cffffffffFPS :")
   titleFrame.fpsint = titleFrame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
   titleFrame.fpsint:SetPoint("RIGHT", titleFrame.fps, "RIGHT", 28, 0)
   titleFrame.fpsdec = titleFrame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
@@ -653,6 +602,24 @@ function Graphit:BuildFrame()
 end
 
 
+
+
+
+
+function Graphit:cVarNameLabelOnEnter(cVarName, ownerFrame)
+  GameTooltip:SetOwner(ownerFrame, "ANCHOR_TOPRIGHT")
+
+  GameTooltip:AddLine(cVarName, 1, 0.8, 0, 1, 1)
+  GameTooltip:AddLine(self.availableSettings[cVarName].tooltip, 1, 1, 1, 1, 1)
+  GameTooltip:Show()
+end
+
+function Graphit:cVarNameLabelOnLeave(cVarName)
+  GameTooltip:Hide()
+end
+
+
+
 -- Storing the links to value labels.
 Graphit.valueLabels = {}
 
@@ -673,16 +640,33 @@ function Graphit:PutSetting(cVarName, settingNumber, targetFrame)
   
   -- Create a new frame for this settings element.
   local SettingElementFrame = CreateFrame("Frame", nil, targetFrame)
-
   SettingElementFrame:SetWidth(targetFrame:GetWidth())
   SettingElementFrame:SetHeight(settingElementHeight)
-  SettingElementFrame:SetPoint("TOP", targetFrame, "TOP", 0, top)
-    
-  SettingElementFrame.cVarNameLabel = SettingElementFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  SettingElementFrame.cVarNameLabel:SetPoint("TOPLEFT", SettingElementFrame, "TOPLEFT", 15, -8)
-  SettingElementFrame.cVarNameLabel:SetText("|c00ffffff" .. cVarName)
+  SettingElementFrame:SetPoint("TOPLEFT", targetFrame, "TOPLEFT", 0, top)
     
   
+  -- Create a frame for the setting name.
+  local cVarNameLabelFrame = CreateFrame("Frame", nil, SettingElementFrame)
+  
+  -- Put the setting name font string.
+  cVarNameLabelFrame.cVarNameLabel = SettingElementFrame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+  cVarNameLabelFrame.cVarNameLabel:SetPoint("TOPLEFT", SettingElementFrame, "TOPLEFT", 15, -8)
+  cVarNameLabelFrame.cVarNameLabel:SetText("|cffffffff" .. cVarName)
+  
+  -- Increase the frame to the size of the font string.
+  cVarNameLabelFrame:SetPoint("TOPLEFT", cVarNameLabelFrame.cVarNameLabel, "TOPLEFT", 0, 0)
+  cVarNameLabelFrame:SetPoint("BOTTOMRIGHT", cVarNameLabelFrame.cVarNameLabel, "BOTTOMRIGHT", 0, 0)
+  
+  -- Assing tooltip functions.
+  cVarNameLabelFrame:SetScript("OnEnter", function()
+    self:cVarNameLabelOnEnter(cVarName, cVarNameLabelFrame)
+  end )
+  
+  cVarNameLabelFrame:SetScript("OnLeave", function()
+    self:cVarNameLabelOnLeave(cVarName)
+  end )
+  
+
   local MinusButton = CreateFrame("Button", nil, SettingElementFrame, "UIPanelButtonTemplate")
   MinusButton:SetWidth(25)
   MinusButton:SetPoint("TOPLEFT", SettingElementFrame, "TOPLEFT", 30, -24)
