@@ -201,6 +201,9 @@ function Graphit:SetSetting(cVarName, newValueIndex)
   
   -- self:Print ("Setting " .. cVarName .. " to " .. newValue)
   
+
+  
+  
   if ((cVarName == "shadowMode") or (cVarName == "shadowSoft") or (cVarName == "shadowTextureSize")) then
     self:CheckForShadowFactoryPreset()
   end
@@ -312,6 +315,11 @@ function Graphit:UpdateSettingValueLabel(cVarName, newValueIndex, label)
   else
     label:SetText("|c00ffffff" .. newValue )
   end
+  
+  -- Also update the status bar.
+  self.valueStatusBars[cVarName]:SetValue(newValueIndex)
+  
+
 end
 
 
@@ -459,7 +467,6 @@ function Graphit:BuildFrame()
   
 
   local mainFrame = CreateFrame("Frame", nil, UIParent)
-  mainFrame:ClearAllPoints()
   mainFrame:SetPoint("TOPRIGHT", "Minimap", "BOTTOMLEFT", 40, -30)
   mainFrame:SetFrameStrata("FULLSCREEN")
   mainFrame:SetBackdrop({ bgFile = "Interface/Tooltips/UI-Tooltip-Background", 
@@ -468,13 +475,8 @@ function Graphit:BuildFrame()
                         insets = { left = 4, right = 4, top = 4, bottom = 4 }})
   mainFrame:SetBackdropColor(0.0, 0.0, 0.0, 1.0)
   
-  -- Alternatives:
-  -- Interface/DialogFrame/UI-DialogBox-Border
-  -- Interface/Tooltips/UI-Tooltip-Border
-  -- Interface/TutorialFrame/TutorialFrameBackground
-  -- Interface/Tooltips/UI-Tooltip-Background
-  
 
+  
   -- Enable dragging.
   mainFrame:SetMovable(true)
   mainFrame:EnableMouse(true)
@@ -485,7 +487,7 @@ function Graphit:BuildFrame()
   
   
   -- Set the dimensions.
-  local fixedWidth = 220
+  local fixedWidth = 230
   local minHeight = 200
   local maxHeight = 800
   local initHeight = 400
@@ -509,7 +511,6 @@ function Graphit:BuildFrame()
 
   -- Set the window title.
   local titleFrame = CreateFrame("Frame", "Graphit_titleFrame", self.mainFrame)
-  titleFrame:ClearAllPoints()
   titleFrame:SetBackdrop({ bgFile = "Interface/Tooltips/UI-Tooltip-Background", 
                         edgeFile = "Interface/DialogFrame/UI-DialogBox-Border", 
                         tile = true, tileSize = 16, edgeSize = 16, 
@@ -552,7 +553,6 @@ function Graphit:BuildFrame()
   
   -- Set the scrollable content window.
   local scrollFrame = CreateFrame("ScrollFrame", nil, self.mainFrame)
-  scrollFrame:ClearAllPoints()
   
   -- scrollFrame:SetBackdrop({ bgFile = "Interface/Tooltips/UI-Tooltip-Background" })
   -- scrollFrame:SetBackdropColor(0.0, 0.0, 1.0, 1.0)
@@ -605,16 +605,11 @@ function Graphit:BuildFrame()
     self:PutSetting(v, k-1, self.mainFrame.scrollFrame.contentFrame)
   end
   
-  
-  
-  
+
   Graphit_MainFrameSizeChanged(self.mainFrame, self.mainFrame:GetWidth(), self.mainFrame:GetHeight())
   
   
-  
-  
-  
-  
+
   
   -- Resize button.
   local resizeButton = CreateFrame("Button", nil, self.mainFrame, "UIPanelButtonTemplate")
@@ -661,6 +656,9 @@ end
 -- Storing the links to value labels.
 Graphit.valueLabels = {}
 
+-- Storing the valueStatusBars.
+Graphit.valueStatusBars = {}
+
 
 function Graphit:PutSetting(cVarName, settingNumber, targetFrame)
 
@@ -675,7 +673,6 @@ function Graphit:PutSetting(cVarName, settingNumber, targetFrame)
   
   -- Create a new frame for this settings element.
   local SettingElementFrame = CreateFrame("Frame", nil, targetFrame)
-  SettingElementFrame:ClearAllPoints()
 
   SettingElementFrame:SetWidth(targetFrame:GetWidth())
   SettingElementFrame:SetHeight(settingElementHeight)
@@ -695,34 +692,52 @@ function Graphit:PutSetting(cVarName, settingNumber, targetFrame)
     self:TryToSetSetting(cVarName, false)
   end )
   
-  
-  self.valueLabels[cVarName] = SettingElementFrame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-  self.valueLabels[cVarName]:SetPoint("CENTER", SettingElementFrame, "TOPLEFT", (55 + 160)/2 , -34)
-  -- print (cVarName .. " is currently " .. GetCVar(cVarName) .. " which is index " .. self:GetValueIndex(cVarName))
-  self:UpdateSettingValueLabel(cVarName, self:GetValueIndex(cVarName), self.valueLabels[cVarName])
-  
-
-  -- MyStatusBar = CreateFrame("StatusBar", nil, content)
-  -- MyStatusBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-  -- MyStatusBar:GetStatusBarTexture():SetHorizTile(false)
-  -- MyStatusBar:SetMinMaxValues(0, 100)
-  -- MyStatusBar:SetValue(100)
-  -- MyStatusBar:SetWidth(200)
-  -- MyStatusBar:SetHeight(10)
-  -- MyStatusBar:SetPoint("CENTER",content,"CENTER")
-  -- MyStatusBar:SetStatusBarColor(0,0.6,0)   
-      
-      
-      
-      
   local PlusButton = CreateFrame("Button", nil, SettingElementFrame, "UIPanelButtonTemplate")
   PlusButton:SetWidth(25)
-  PlusButton:SetPoint("TOPLEFT", SettingElementFrame, "TOPLEFT", 160, -24)
+  PlusButton:SetPoint("TOPRIGHT", SettingElementFrame, "TOPRIGHT", -5, -24)
   PlusButton:SetText("+")
   PlusButton:SetScript("OnClick", function()
     PlaySound(799) -- SOUNDKIT.GS_TITLE_OPTION_EXIT
     self:TryToSetSetting(cVarName, true)
   end )
+  
+  
+  -- Get the number of values for this setting.
+  local numberOfSettings = 0
+  for k,v in pairs(self.availableSettings[cVarName].values) do
+    -- print (cVarName .. ": " .. k .. ", " .. v)
+    numberOfSettings = numberOfSettings + 1
+  end
+  
+  self.valueStatusBars[cVarName] = CreateFrame("StatusBar", nil, SettingElementFrame)
+  self.valueStatusBars[cVarName]:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+  self.valueStatusBars[cVarName]:GetStatusBarTexture():SetHorizTile(false)
+  self.valueStatusBars[cVarName]:SetMinMaxValues(1, numberOfSettings)
+  self.valueStatusBars[cVarName]:SetHeight(12)
+  self.valueStatusBars[cVarName]:SetPoint("LEFT", MinusButton, "RIGHT", 4, 0)
+  self.valueStatusBars[cVarName]:SetPoint("RIGHT", PlusButton, "LEFT", -5, 0)
+  self.valueStatusBars[cVarName]:SetStatusBarColor(0,0.5,0,0.8)   
+      
+  local statusBarBorder = CreateFrame("Frame", nil, self.valueStatusBars[cVarName])
+  statusBarBorder:SetPoint("TOPLEFT", self.valueStatusBars[cVarName], "TOPLEFT", -3, 4)
+  statusBarBorder:SetPoint("BOTTOMRIGHT", self.valueStatusBars[cVarName], "BOTTOMRIGHT", 4, -5)
+  statusBarBorder:SetBackdrop({
+      bgFile = nil, 
+      edgeFile = "Interface/Tooltips/UI-Tooltip-Border", 
+      tile = true, tileSize = 32, edgeSize = 16, 
+      insets = { left = 0, right = 0, top = 0, bottom = 0}
+    })
+  statusBarBorder:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+  
+
+  
+  local SettingElementLabelFrame = CreateFrame("Frame", nil, statusBarBorder)
+  SettingElementLabelFrame:SetPoint("CENTER", SettingElementFrame, "TOPLEFT", (55 + 160)/2 , -34)
+  
+  self.valueLabels[cVarName] = SettingElementLabelFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+  self.valueLabels[cVarName]:SetPoint("CENTER", statusBarBorder, "CENTER")
+  -- print (cVarName .. " is currently " .. GetCVar(cVarName) .. " which is index " .. self:GetValueIndex(cVarName))
+  self:UpdateSettingValueLabel(cVarName, self:GetValueIndex(cVarName), self.valueLabels[cVarName])
   
 end
 
