@@ -8,17 +8,70 @@ Graphit.version = "1.0"
 
 
 Graphit.availableSettingsIndex = {
+  "farclip",
+  "horizonStart",
+  "terrainLodDist",
+  "wmoLodDist",
   "shadowMode",
   "shadowSoft",
   "shadowTextureSize",
+  "graphicsTextureFiltering",
+  "projectedTextures",
   "worldBaseMip",
   "terrainMipLevel",
-  "componentTextureLevel",
-  "graphicsTextureFiltering",
-  "projectedTextures"
+  "componentTextureLevel"
 }
 
 Graphit.availableSettings = {
+
+
+  -- View Distance settings
+  
+  farclip = {
+    values = {
+      "0.000000", "1500.000000", "10000.000000"
+    },
+    valueNames = {
+      "0", "1500", "10000"
+    },
+    tooltip = "TODO"
+  },
+
+
+  horizonStart = {
+    values = {
+      "400.000000", "4000.000000"
+    },
+    valueNames = {
+      "400", "4000"
+    },
+    tooltip = "TODO"
+  },
+
+
+  terrainLodDist = {
+    values = {
+      "200.000000", "650.000000"
+    },
+    valueNames = {
+      "200", "650"
+    },
+    tooltip = "TODO"
+  },
+  
+  -- WMO = World Models ?
+  wmoLodDist = {
+    values = {
+      "250.000000", "550.000000"
+    },
+    valueNames = {
+      "250", "550"
+    },
+    tooltip = "TODO"
+  },
+
+
+
 
 
   -- Shadow settings
@@ -52,6 +105,42 @@ Graphit.availableSettings = {
     tooltip = L["shadowTextureSizeTooltip"]
   },
   
+  
+  
+  
+  
+  
+  
+  
+  graphicsTextureFiltering = {
+    values = {
+      "1", "2", "3", "4", "5", "6"
+    },
+    valueNames = {
+      "Bilinear", "Trilinear", "2x Anisotropic", "4x Anisotropic", "8x Anisotropic", "16x Anisotropic"
+    },
+    tooltip = L["graphicsTextureFilteringTooltip"]
+  },
+  
+  
+  
+  
+  
+  projectedTextures = {
+    values = {
+      "0.000000", "1.000000"
+    },
+    valueNames = {
+      "off", "on"
+    },
+    tooltip = L["projectedTexturesTooltip"]
+  },
+  
+  
+  
+  
+  
+  
   -- Texture resolution settings
   worldBaseMip = {
     values = {
@@ -81,30 +170,7 @@ Graphit.availableSettings = {
       "low", "high"
     },
     tooltip = L["componentTextureLevelTooltip"]
-  },
-  
-  
-  
-  graphicsTextureFiltering = {
-    values = {
-      "1", "2", "3", "4", "5", "6"
-    },
-    valueNames = {
-      "Bilinear", "Trilinear", "2x Anisotropic", "4x Anisotropic", "8x Anisotropic", "16x Anisotropic"
-    },
-    tooltip = L["graphicsTextureFilteringTooltip"]
-  },
-  
-  projectedTextures = {
-    values = {
-      "0.000000", "1.000000"
-    },
-    valueNames = {
-      "off", "on"
-    },
-    tooltip = L["projectedTexturesTooltip"]
   }--,
-  
   
   
 
@@ -152,6 +218,22 @@ function Graphit:SetSetting(cVarName, newValueIndex)
   -- self:Print ("Setting " .. cVarName .. " to " .. newValue)
   
 
+  
+  
+  -- projectedTextures needs very peculiar special treatment:
+  -- graphicsProjectedTextures has to be set as well, even though in case of "enabled"
+  -- "graphicsProjectedTextures 2" is not even saved in the config.wtf.
+  if (cVarName == "projectedTextures") then
+    
+    -- disabled
+    if (newValueIndex == 1) then
+      SetCVar("graphicsProjectedTextures", "1")
+    -- enabled
+    elseif (newValueIndex == 2) then
+      SetCVar("graphicsProjectedTextures", 2)
+    end
+    
+  end
   
   
   if ((cVarName == "shadowMode") or (cVarName == "shadowSoft") or (cVarName == "shadowTextureSize")) then
@@ -316,22 +398,22 @@ end
 
 
 function Graphit:OnInitialize()
-  -- Called when the addon is loaded
   
   self.db = LibStub("AceDB-3.0"):New("GraphitDB", defaults, true)
   
-  self:RegisterChatCommand("graphit", "ChatCommand")
-  self:RegisterChatCommand("grt", "ChatCommand")
+  
 end
 
+
+
 function Graphit:OnEnable()
-  -- Called when the addon is enabled
+
+  self:RegisterChatCommand("graphit", "ChatCommand")
+  self:RegisterChatCommand("grt", "ChatCommand")
+  
   
   self:RegisterEvent("ZONE_CHANGED", "ZoneChanged");
   self:RegisterEvent("ZONE_CHANGED_INDOORS", "ZoneChanged");
-  
-  
-  self:RegisterEvent("CONSOLE_MESSAGE", "PossibleSettingsUpdate");
   
   
   -- Flag variables belonging to Graphit.
@@ -341,6 +423,18 @@ function Graphit:OnEnable()
   self:BuildFrame()
   -- DEBUG: Uncomment this to have graphit window shown after reloading UI.
   -- self:HideFrame()
+  
+  
+  -- Hook BlizzardOptionsPanel_SetCVarSafe function to update graphit.
+  local oldBlizzardOptionsPanel_SetCVarSafe = BlizzardOptionsPanel_SetCVarSafe;
+  
+  function BlizzardOptionsPanel_SetCVarSafe(...)
+    self:PossibleSettingsUpdate();
+    return oldBlizzardOptionsPanel_SetCVarSafe(...);
+  end
+  
+  
+  
 end
 
 function Graphit:OnDisable()
@@ -752,7 +846,7 @@ end
 
 
 function Graphit:PossibleSettingsUpdate(event, arg1)
-  -- self:Print("PossibleSettingsUpdate: " .. event .. "  "  .. arg1)
+  -- self:Print("PossibleSettingsUpdate")
   
   for k,v in pairs(self.availableSettingsIndex) do
     self:UpdateSettingValueLabel(v, self:GetValueIndex(v), self.valueLabels[v])
