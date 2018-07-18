@@ -10,13 +10,19 @@ Graphit.version = "1.0"
 Graphit.availableSettingsIndex = {
   "farclip",
   "horizonStart",
+  "entityShadowFadeScale",
+  "entityLodDist",
   "terrainLodDist",
   "wmoLodDist",
+  
   "shadowMode",
   "shadowSoft",
   "shadowTextureSize",
+  
   "graphicsTextureFiltering",
+  
   "projectedTextures",
+  
   "worldBaseMip",
   "terrainMipLevel",
   "componentTextureLevel"
@@ -24,15 +30,14 @@ Graphit.availableSettingsIndex = {
 
 Graphit.availableSettings = {
 
-
   -- View Distance settings
   
   farclip = {
     values = {
-      "0.000000", "1500.000000", "10000.000000"
+      "1500.000000", "2000.000000", "3000.000000", "5000.000000", "6000.000000", "7000.000000", "8000.000000", "10000.000000"
     },
     valueNames = {
-      "0", "1500", "10000"
+      "1500", "2000", "3000", "5000", "6000", "7000", "8000", "10000"
     },
     tooltip = "TODO"
   },
@@ -40,21 +45,42 @@ Graphit.availableSettings = {
 
   horizonStart = {
     values = {
-      "400.000000", "4000.000000"
+      "400.000000", "600.000000", "800.000000", "1000.000000", "1400.000000", "1700.000000", "1900.000000", "2400.000000", "3000.000000", "4000.000000"
     },
     valueNames = {
-      "400", "4000"
+      "400", "600", "800", "1000", "1400", "1700", "1900", "2400", "3000", "4000"
     },
     tooltip = "TODO"
   },
 
 
-  terrainLodDist = {
+  entityShadowFadeScale = {
     values = {
-      "200.000000", "650.000000"
+      "10.000000", "15.000000", "20.000000", "25.000000", "30.000000", "40.000000", "50.000000"
     },
     valueNames = {
-      "200", "650"
+      "10", "15", "20", "25", "30", "40", "50"
+    },
+    tooltip = "TODO"
+  },
+
+  
+  entityLodDist = {
+    values = {
+      "5.000000", "7.000000", "8.000000", "10.000000"
+    },
+    valueNames = {
+      "5", "7", "8", "10"
+    },
+    tooltip = "TODO"
+  },
+  
+  terrainLodDist = {
+    values = {
+      "200.000000", "225.000000", "250.000000", "350.000000", "400.000000", "500.000000", "600.000000", "650.000000"
+    },
+    valueNames = {
+      "200", "225", "250", "350", "400", "500", "600", "650"
     },
     tooltip = "TODO"
   },
@@ -62,25 +88,24 @@ Graphit.availableSettings = {
   -- WMO = World Models ?
   wmoLodDist = {
     values = {
-      "250.000000", "550.000000"
+      "250.000000", "300.000000", "350.000000", "400.000000"
     },
     valueNames = {
-      "250", "550"
+      "250", "300", "350", "400"
     },
     tooltip = "TODO"
   },
-
-
-
-
+  
+  
+  
 
   -- Shadow settings
   shadowMode = {
     values = {
-      "0.000000", "1.000000", "2.000000", "3.000000", "4.000000"
+      "0.000000", "1.000000", "2.000000", "3.000000"
     },
     valueNames = {
-      "0", "1", "2", "3", "4"
+      "0", "1", "2", "3"
     },
     tooltip = L["shadowModeTooltip"]
   },
@@ -244,6 +269,20 @@ function Graphit:SetSetting(cVarName, newValueIndex)
     self:CheckForTextureResolutionFactoryPreset()
   end
   
+  if ((cVarName == "farclip") or (cVarName == "horizonStart") or (cVarName == "entityShadowFadeScale") or (cVarName == "entityLodDist") or (cVarName == "terrainLodDist") or (cVarName == "wmoLodDist")) then
+    self:CheckForViewDistanceFactoryPreset()
+  end
+  
+
+  
+  for key, value in pairs(VideoData) do
+		_G[key].selectedID = nil;
+	end
+	VideoOptionsPanel_Refresh( Display_);
+	VideoOptionsPanel_Refresh( Graphics_);
+	VideoOptionsPanel_Refresh( RaidGraphics_);
+	VideoOptionsPanel_Refresh( Advanced_);
+  
   
 end
 
@@ -258,35 +297,31 @@ function Graphit:CheckForShadowFactoryPreset()
   -- print (shadowModeValue .. " " .. shadowSoftValue .. " " .. shadowTextureSizeValue)
   
   -- Ultra High
-  if ((tonumber(shadowModeValue) == 4) and (tonumber(shadowSoftValue) == 1) and (tonumber(shadowTextureSizeValue) == 2048)) then
+  if ((tonumber(shadowModeValue) == 3) and (tonumber(shadowSoftValue) == 1) and (tonumber(shadowTextureSizeValue) == 2048)) then
     -- print ("Ultra High")
     return SetCVar("graphicsShadowQuality", 6)
   end
   -- Ultra
-  if ((tonumber(shadowModeValue) == 3) and (tonumber(shadowSoftValue) == 1) and (tonumber(shadowTextureSizeValue) == 2048)) then
+  if ((tonumber(shadowModeValue) == 2) and (tonumber(shadowSoftValue) == 1) and (tonumber(shadowTextureSizeValue) == 2048)) then
     -- print ("Ultra")
     return SetCVar("graphicsShadowQuality", 5)
   end
   -- High
-  if ((tonumber(shadowModeValue) == 3) and (tonumber(shadowSoftValue) == 0) and (tonumber(shadowTextureSizeValue) == 2048)) then
+  if ((tonumber(shadowModeValue) == 2) and (tonumber(shadowSoftValue) == 0) and (tonumber(shadowTextureSizeValue) == 2048)) then
     -- print ("High")
     return SetCVar("graphicsShadowQuality", 4)
   end
   -- Good
-  if ((tonumber(shadowModeValue) == 2) and (tonumber(shadowSoftValue) == 0) and (tonumber(shadowTextureSizeValue) == 1024)) then
+  if ((tonumber(shadowModeValue) == 1) and (tonumber(shadowSoftValue) == 0) and (tonumber(shadowTextureSizeValue) == 1024)) then
     -- print ("Good")
     return SetCVar("graphicsShadowQuality", 3)
   end
   -- Fair
-  if ((tonumber(shadowModeValue) == 1) and (tonumber(shadowSoftValue) == 0) and (tonumber(shadowTextureSizeValue) == 1024)) then
+  if ((tonumber(shadowModeValue) == 0) and (tonumber(shadowSoftValue) == 0) and (tonumber(shadowTextureSizeValue) == 1024)) then
     -- print ("Fair")
     return SetCVar("graphicsShadowQuality", 2)
   end
-  -- Low
-  if ((tonumber(shadowModeValue) == 0) and (tonumber(shadowSoftValue) == 0) and (tonumber(shadowTextureSizeValue) == 1024)) then
-    -- print ("Low")
-    return SetCVar("graphicsShadowQuality", 1)
-  end
+  
   
   -- print ("Custom")
   SetCVar("graphicsShadowQuality", 0)
@@ -333,6 +368,123 @@ function Graphit:CheckForTextureResolutionFactoryPreset()
   
 end
 
+
+
+
+-- Check if the current combination of texture resolution settings is one of WOW's "factory" graphicsTextureResolution defaults. 
+function Graphit:CheckForViewDistanceFactoryPreset()
+
+  farclipValue = GetCVar("farclip")
+  horizonStartValue = GetCVar("horizonStart")
+  terrainLodDistValue = GetCVar("terrainLodDist")
+  wmoLodDistValue = GetCVar("wmoLodDist")
+  entityShadowFadeScaleValue = GetCVar("entityShadowFadeScale")
+  entityLodDistValue = GetCVar("entityLodDist")
+  
+   
+  -- 10
+  if ((tonumber(farclipValue) >= 10000) and
+      (tonumber(horizonStartValue) >= 4000) and
+      (tonumber(entityShadowFadeScaleValue) >= 50) and
+      (tonumber(entityLodDistValue) >= 10) and
+      (tonumber(terrainLodDistValue) >= 650) and
+      (tonumber(wmoLodDistValue) >= 400)) then
+    -- print ("10")
+    SetCVar("graphicsViewDistance", 10)
+  -- 9
+  elseif ((tonumber(farclipValue) >= 8000) and
+      (tonumber(horizonStartValue) >= 3000) and
+      (tonumber(entityShadowFadeScaleValue) >= 40) and
+      (tonumber(entityLodDistValue) >= 10) and
+      (tonumber(terrainLodDistValue) >= 650) and
+      (tonumber(wmoLodDistValue) >= 400)) then
+    -- print ("9")
+    SetCVar("graphicsViewDistance", 9)
+  -- 8
+  elseif ((tonumber(farclipValue) >= 8000) and
+      (tonumber(horizonStartValue) >= 2400) and
+      (tonumber(entityShadowFadeScaleValue) >= 30) and
+      (tonumber(entityLodDistValue) >= 10) and
+      (tonumber(terrainLodDistValue) >= 600) and
+      (tonumber(wmoLodDistValue) >= 400)) then
+    -- print ("8")
+    return SetCVar("graphicsViewDistance", 8)
+  -- 7
+  elseif ((tonumber(farclipValue) >= 7000) and
+      (tonumber(horizonStartValue) >= 1900) and
+      (tonumber(entityShadowFadeScaleValue) >= 25) and
+      (tonumber(entityLodDistValue) >= 10) and
+      (tonumber(terrainLodDistValue) >= 500) and
+      (tonumber(wmoLodDistValue) >= 400)) then
+    -- print ("7")
+    SetCVar("graphicsViewDistance", 7)
+  -- 6
+  elseif ((tonumber(farclipValue) >= 6000) and
+      (tonumber(horizonStartValue) >= 1700) and
+      (tonumber(entityShadowFadeScaleValue) >= 20) and
+      (tonumber(entityLodDistValue) >= 8) and
+      (tonumber(terrainLodDistValue) >= 500) and
+      (tonumber(wmoLodDistValue) >= 350)) then
+    -- print ("6")
+    SetCVar("graphicsViewDistance", 6)
+  -- 5
+  elseif ((tonumber(farclipValue) >= 6000) and
+      (tonumber(horizonStartValue) >= 1400) and
+      (tonumber(entityShadowFadeScaleValue) >= 20) and
+      (tonumber(entityLodDistValue) >= 8) and
+      (tonumber(terrainLodDistValue) >= 400) and
+      (tonumber(wmoLodDistValue) >= 350)) then
+    -- print ("5")
+    SetCVar("graphicsViewDistance", 5)
+  -- 4
+  elseif ((tonumber(farclipValue) >= 5000) and
+      (tonumber(horizonStartValue) >= 1000) and
+      (tonumber(entityShadowFadeScaleValue) >= 15) and
+      (tonumber(entityLodDistValue) >= 7) and
+      (tonumber(terrainLodDistValue) >= 350) and
+      (tonumber(wmoLodDistValue) >= 300)) then
+    -- print ("4")
+    SetCVar("graphicsViewDistance", 4)
+  -- 3
+  elseif ((tonumber(farclipValue) >= 3000) and
+      (tonumber(horizonStartValue) >= 800) and
+      (tonumber(entityShadowFadeScaleValue) >= 10) and
+      (tonumber(entityLodDistValue) >= 5) and
+      (tonumber(terrainLodDistValue) >= 250) and
+      (tonumber(wmoLodDistValue) >= 300)) then
+    -- print ("3")
+    SetCVar("graphicsViewDistance", 3)
+  -- 2
+  elseif ((tonumber(farclipValue) >= 2000) and
+      (tonumber(horizonStartValue) >= 600) and
+      (tonumber(entityShadowFadeScaleValue) >= 10) and
+      (tonumber(entityLodDistValue) >= 5) and
+      (tonumber(terrainLodDistValue) >= 225) and
+      (tonumber(wmoLodDistValue) >= 250)) then
+    -- print ("2")
+    SetCVar("graphicsViewDistance", 2)
+  -- 1
+  elseif ((tonumber(farclipValue) >= 1500) and
+      (tonumber(horizonStartValue) >= 400) and
+      (tonumber(entityShadowFadeScaleValue) >= 10) and
+      (tonumber(entityLodDistValue) >= 5) and
+      (tonumber(terrainLodDistValue) >= 200) and
+      (tonumber(wmoLodDistValue) >= 250)) then
+    -- print ("1")
+    SetCVar("graphicsViewDistance", 1)
+  end
+  
+  
+  -- Must set the variables again, because setting graphicsViewDistance will reset the others.
+  SetCVar("farclip", farclipValue)
+  SetCVar("horizonStart", horizonStartValue)
+  SetCVar("entityShadowFadeScale", entityShadowFadeScaleValue)
+  SetCVar("entityLodDist", entityLodDistValue)
+  SetCVar("terrainLodDist", terrainLodDistValue)
+  SetCVar("wmoLodDist", wmoLodDistValue)
+  
+  
+end
 
 
 
@@ -416,6 +568,17 @@ function Graphit:OnEnable()
   self:RegisterEvent("ZONE_CHANGED_INDOORS", "ZoneChanged");
   
   
+  -- Hook BlizzardOptionsPanel_SetCVarSafe function to update graphit.
+  local old_BlizzardOptionsPanel_SetCVarSafe = BlizzardOptionsPanel_SetCVarSafe;
+  
+  function BlizzardOptionsPanel_SetCVarSafe(...)
+    self:PossibleSettingsUpdate();
+    return old_BlizzardOptionsPanel_SetCVarSafe(...);
+  end
+  
+  
+  
+  
   -- Flag variables belonging to Graphit.
   self.frameShown = false
   self.frameBuilt = false
@@ -424,21 +587,16 @@ function Graphit:OnEnable()
   -- DEBUG: Uncomment this to have graphit window shown after reloading UI.
   -- self:HideFrame()
   
-  
-  -- Hook BlizzardOptionsPanel_SetCVarSafe function to update graphit.
-  local oldBlizzardOptionsPanel_SetCVarSafe = BlizzardOptionsPanel_SetCVarSafe;
-  
-  function BlizzardOptionsPanel_SetCVarSafe(...)
-    self:PossibleSettingsUpdate();
-    return oldBlizzardOptionsPanel_SetCVarSafe(...);
-  end
-  
-  
-  
+
 end
+
+
+
 
 function Graphit:OnDisable()
   -- Called when the addon is disabled
+  
+  -- TODO
 end
 
 
