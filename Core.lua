@@ -8,12 +8,13 @@ Graphit.version = "1.0"
 
 
 Graphit.availableSettingsIndex = {
-  "farclip",
+
   "horizonStart",
-  "entityShadowFadeScale",
-  "entityLodDist",
+  "farclip",
   "terrainLodDist",
   "wmoLodDist",
+  "entityLodDist",
+  "entityShadowFadeScale",
   
   "shadowMode",
   "shadowSoft",
@@ -28,16 +29,20 @@ Graphit.availableSettingsIndex = {
   "componentTextureLevel"
 }
 
+
 Graphit.availableSettings = {
 
   -- View Distance settings
   
   farclip = {
     values = {
-      "1500.000000", "2000.000000", "3000.000000", "5000.000000", "6000.000000", "7000.000000", "8000.000000", "10000.000000"
+      "1500.000000", "2000.000000", "2500.000000", "3000.000000", "3500.000000", "4000.000000", "4500.000000", "5000.000000", "5500.000000", "6000.000000", "6500.000000","7000.000000", "7500.000000", "8000.000000", "8500.000000", "9000.000000", "9500.000000", "10000.000000"
     },
     valueNames = {
-      "1500", "2000", "3000", "5000", "6000", "7000", "8000", "10000"
+      -- Actually used by factory presets:
+      -- "1500", "2000", "3000", "5000", "6000", "7000", "8000", "10000"
+      "1500", "2000", "2500", "3000", "3500", "4000", "4500", "5000", "5500", "6000", "6500", "7000", "7500", "8000", "8500", "9000", "9500", "10000"
+      
     },
     tooltip = "TODO"
   },
@@ -45,10 +50,12 @@ Graphit.availableSettings = {
 
   horizonStart = {
     values = {
-      "400.000000", "600.000000", "800.000000", "1000.000000", "1400.000000", "1700.000000", "1900.000000", "2400.000000", "3000.000000", "4000.000000"
+      "400.000000", "500.000000", "600.000000", "700.000000", "800.000000", "900.000000", "1000.000000", "1100.000000", "1200.000000", "1300.000000", "1400.000000", "1500.000000", "1600.000000", "1700.000000", "1800.000000", "1900.000000", "2000.000000", "2100.000000", "2200.000000", "2300.000000", "2400.000000", "2500.000000", "2600.000000", "2700.000000", "2800.000000", "2900.000000", "3000.000000", "3100.000000", "3200.000000", "3300.000000", "3400.000000", "3500.000000", "3600.000000", "3700.000000", "3800.000000", "3900.000000", "4000.000000"
     },
     valueNames = {
-      "400", "600", "800", "1000", "1400", "1700", "1900", "2400", "3000", "4000"
+      -- Actually used by factory presets:
+      -- "400", "600", "800", "1000", "1400", "1700", "1900", "2400", "3000", "4000"
+      "400", "500", "600", "700", "800", "900", "1000", "1100", "1200", "1300", "1400", "1500", "1600", "1700", "1800", "1900", "2000", "2100", "2200", "2300", "2400", "2500", "2600", "2700", "2800", "2900", "3000", "3100", "3200", "3300", "3400", "3500", "3600", "3700", "3800", "3900", "4000"
     },
     tooltip = "TODO"
   },
@@ -56,10 +63,12 @@ Graphit.availableSettings = {
 
   entityShadowFadeScale = {
     values = {
-      "10.000000", "15.000000", "20.000000", "25.000000", "30.000000", "40.000000", "50.000000"
+      "10.000000", "15.000000", "20.000000", "25.000000", "30.000000", "35.000000", "40.000000", "45.000000", "50.000000"
     },
     valueNames = {
-      "10", "15", "20", "25", "30", "40", "50"
+      -- Actually used by factory presets:
+      -- "10", "15", "20", "25", "30", "40", "50"
+      "10", "15", "20", "25", "30", "35", "40", "45", "50"
     },
     tooltip = "TODO"
   },
@@ -67,20 +76,24 @@ Graphit.availableSettings = {
   
   entityLodDist = {
     values = {
-      "5.000000", "7.000000", "8.000000", "10.000000"
+      "5.000000", "6.000000", "7.000000", "8.000000", "9.000000", "10.000000"
     },
     valueNames = {
-      "5", "7", "8", "10"
+      -- Actually used by factory presets:
+      -- "5", "7", "8", "10"
+      "5", "6", "7", "8", "9", "10"
     },
     tooltip = "TODO"
   },
   
   terrainLodDist = {
     values = {
-      "200.000000", "225.000000", "250.000000", "350.000000", "400.000000", "500.000000", "600.000000", "650.000000"
+      "200.000000", "225.000000", "250.000000", "275.000000", "300.000000", "325.000000", "350.000000", "375.000000", "400.000000", "425.000000", "450.000000", "475.000000", "500.000000", "525.000000", "550.000000", "575.000000", "600.000000", "625.000000", "650.000000"
     },
     valueNames = {
-      "200", "225", "250", "350", "400", "500", "600", "650"
+      -- Actually used by factory presets:
+      -- "200", "225", "250", "350", "400", "500", "600", "650"
+      "200", "225", "250", "275", "300", "325", "350", "375", "400", "425", "450", "475", "500", "525", "550", "575", "600", "625", "650"
     },
     tooltip = "TODO"
   },
@@ -237,30 +250,21 @@ function Graphit:SetSetting(cVarName, newValueIndex)
   local newValue = self.availableSettings[cVarName].values[newValueIndex]
   SetCVar(cVarName, newValue)
   
-  -- Update the GUI label.
-  self:UpdateSettingValueLabel(cVarName, newValueIndex, self.valueLabels[cVarName])
-  
   -- self:Print ("Setting " .. cVarName .. " to " .. newValue)
   
 
-  
-  
   -- projectedTextures needs very peculiar special treatment:
   -- graphicsProjectedTextures has to be set as well, even though in case of "enabled"
-  -- "graphicsProjectedTextures 2" is not even saved in the config.wtf.
+  -- "graphicsProjectedTextures 2" is not even saved in config.wtf.
   if (cVarName == "projectedTextures") then
-    
-    -- disabled
-    if (newValueIndex == 1) then
-      SetCVar("graphicsProjectedTextures", "1")
-    -- enabled
-    elseif (newValueIndex == 2) then
+    if (newValueIndex == 1) then   -- disabled
+      SetCVar("graphicsProjectedTextures", 1)
+    elseif (newValueIndex == 2) then   -- enabled
       SetCVar("graphicsProjectedTextures", 2)
     end
-    
   end
   
-  
+  -- Check if factory presets of the video options panel are fulfilled.
   if ((cVarName == "shadowMode") or (cVarName == "shadowSoft") or (cVarName == "shadowTextureSize")) then
     self:CheckForShadowFactoryPreset()
   end
@@ -273,8 +277,8 @@ function Graphit:SetSetting(cVarName, newValueIndex)
     self:CheckForViewDistanceFactoryPreset()
   end
   
-
   
+  -- Refresh the stock video options panel.
   for key, value in pairs(VideoData) do
 		_G[key].selectedID = nil;
 	end
@@ -283,6 +287,13 @@ function Graphit:SetSetting(cVarName, newValueIndex)
 	VideoOptionsPanel_Refresh( RaidGraphics_);
 	VideoOptionsPanel_Refresh( Advanced_);
   
+  
+  -- Refresh all GUI labels and sliders of graphit.
+  -- This is a little redundant because
+  -- self:UpdateSettingValueLabel(cVarName, newValueIndex, self.valueLabels[cVarName])
+  -- should normally suffice.
+  -- But updating all labels will let us know immediately, if something went wrong (e.g. when setting the factory preset variables also changes other variables...).
+  self:PossibleSettingsUpdate();
   
 end
 
@@ -464,12 +475,12 @@ function Graphit:CheckForViewDistanceFactoryPreset()
     -- print ("2")
     SetCVar("graphicsViewDistance", 2)
   -- 1
-  elseif ((tonumber(farclipValue) >= 1500) and
-      (tonumber(horizonStartValue) >= 400) and
-      (tonumber(entityShadowFadeScaleValue) >= 10) and
-      (tonumber(entityLodDistValue) >= 5) and
-      (tonumber(terrainLodDistValue) >= 200) and
-      (tonumber(wmoLodDistValue) >= 250)) then
+  elseif ((tonumber(farclipValue) <= 1500) and
+      (tonumber(horizonStartValue) <= 400) and
+      (tonumber(entityShadowFadeScaleValue) <= 10) and
+      (tonumber(entityLodDistValue) <= 5) and
+      (tonumber(terrainLodDistValue) <= 200) and
+      (tonumber(wmoLodDistValue) <= 250)) then
     -- print ("1")
     SetCVar("graphicsViewDistance", 1)
   end
@@ -527,17 +538,17 @@ function Graphit:TryToSetSetting(cVarName, increase)
     
     -- Set the next higher value.
     self:SetSetting(cVarName, valueIndex+1)
-    return
+
+  else -- decrease
+    if valueIndex == 1 then
+      -- print ("Already min value!")
+      return
+    end
+    
+    -- Set the next lower value.
+    self:SetSetting(cVarName, valueIndex-1)
+
   end
-  
-  -- Else must be decrease.
-  if valueIndex == 1 then
-    -- print ("Already min value!")
-    return
-  end
-  
-  -- Set the next lower value.
-  self:SetSetting(cVarName, valueIndex-1)
   
 end
 
@@ -563,14 +574,12 @@ function Graphit:OnEnable()
   self:RegisterChatCommand("graphit", "ChatCommand")
   self:RegisterChatCommand("grt", "ChatCommand")
   
-  
   self:RegisterEvent("ZONE_CHANGED", "ZoneChanged");
   self:RegisterEvent("ZONE_CHANGED_INDOORS", "ZoneChanged");
   
   
-  -- Hook BlizzardOptionsPanel_SetCVarSafe function to update graphit.
+  -- Hook BlizzardOptionsPanel_SetCVarSafe function to update graphit, whenever settings are changed by the game (e.g. video options panel).
   local old_BlizzardOptionsPanel_SetCVarSafe = BlizzardOptionsPanel_SetCVarSafe;
-  
   function BlizzardOptionsPanel_SetCVarSafe(...)
     self:PossibleSettingsUpdate();
     return old_BlizzardOptionsPanel_SetCVarSafe(...);
@@ -596,8 +605,9 @@ end
 function Graphit:OnDisable()
   -- Called when the addon is disabled
   
-  -- TODO
+  -- TODO: Undo OnEnable stuff.
 end
+
 
 
 
@@ -646,6 +656,8 @@ local function Graphit_MainFrameSizeChanged(self, width, height)
   end
   
 end 
+
+
 
 
 function Graphit:BuildFrame()
@@ -765,9 +777,6 @@ function Graphit:BuildFrame()
   scrollFrame:SetMaxResize(fixedWidth - sliderOffset, maxHeight - self.mainFrame.titleFrame:GetHeight())
   scrollFrame:SetMinResize(fixedWidth - sliderOffset, minHeight - self.mainFrame.titleFrame:GetHeight())
     
-  
-  
-    
   self.mainFrame.scrollFrame = scrollFrame
   
   
@@ -869,6 +878,8 @@ end
 function Graphit:cVarNameLabelOnLeave(cVarName)
   GameTooltip:Hide()
 end
+
+
 
 
 
