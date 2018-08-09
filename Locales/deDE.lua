@@ -29,6 +29,19 @@ L["graphicsTextureFilteringTooltip"] = "Verbessert die Sch\195\164rfe von Textur
 L["projectedTexturesTooltip"] = "Legt fest, ob Texturen auf die Umgebung projeziert werden; z.B. bei bestimmten AoE spells."
 
 
+L["lodObjectCullSizeTooltip"] = "Objekte, die kleiner als dieser Wert erscheinen w\195\188rden, werden ausgeblendet. Interagiert mit lodObjectCullDist. |cffff0000(Das Ver\195\164ndern dieser Einstellung kann dazu f\195\188hren, dass alle Objekte kurz verschwinden, bevor sie neu gezeichnet werden.)"
+L["lodObjectCullDistTooltip"] = "Objekte, die weiter entfernt sind als dieser Wert, werden ausgeblendet. Die Blizzard-Settings lassen es auf 30 f\195\188r fast alle Voreinstellungen. Interagiert mit lodObjectCullSize. |cffff0000(Das Ver\195\164ndern dieser Einstellung kann dazu f\195\188hren, dass alle Objekte kurz verschwinden, bevor sie neu gezeichnet werden.)"
+L["lodObjectMinSizeTooltip"] = "Wenn lodObjectCullSize und lodObjectCullDist auf ihre Minimalwerte gestellt sind, kann man diese Variable hoch setzen, um das Ausblenden großer Objekte (z.B. B\195\164ume) zu unterbinden. Die Blizzard-Settings lassen sie jedoch auf 0 f\195\188r fast alle Voreinstellungen. |cffff0000(Das Ver\195\164ndern dieser Einstellung kann dazu f\195\188hren, dass alle Objekte kurz verschwinden, bevor sie neu gezeichnet werden.)"
+L["lodObjectFadeScaleTooltip"] = "Legt fest, ab welcher Entfernung Objekte mit niedrigem Level-of-Detail (LOD) ausgeblendet werden. |cffff0000(Das Ver\195\164ndern dieser Einstellung kann dazu f\195\188hren, dass alle Objekte kurz verschwinden, bevor sie neu gezeichnet werden.)"
+
+
+L["horizonStartTooltip"] = "Legt fest, bis zu welcher Distanz die Spielwelt gerendert wird. Maximalwerte haben nur einen Effekt, wenn farclip auch maximal eingestellt ist."
+L["farclipTooltip"] = "Legt fest, wie die Umgebung um den Horizont herum gerendert wird. Maximalwerte haben nur einen Effekt, wenn horizonStart auch maximal eingestellt ist."
+
+L["terrainLodDistTooltip"] = "Legt fest, ab welcher Entfernung ein niedriger Level-of-Detail (LOD) f\195\188r das Terrain verwendet werden soll."
+
+
+L["entityShadowFadeScaleTooltip"] = "Legt fest, ab welcher Entfernung die Schatten von Objekten ausgeblendet werden sollen."
 
 
 L["graphicsDepthEffects"] = "Falls jemand rausfindet, was das eigentlich macht, w\195\164re ich sehr interessiert! :-)"

@@ -11,11 +11,18 @@ Graphit.availableSettingsIndex = {
 
   "horizonStart",
   "farclip",
+  
+  "lodObjectCullDist",
+  "lodObjectCullSize",
+  "lodObjectMinSize",
+  "lodObjectFadeScale",
+  
   "terrainLodDist",
   "wmoLodDist",
   "entityLodDist",
-  "entityShadowFadeScale",
   
+  
+  "entityShadowFadeScale",
   "shadowMode",
   "shadowSoft",
   "shadowTextureSize",
@@ -34,6 +41,18 @@ Graphit.availableSettings = {
 
   -- View Distance settings
   
+  horizonStart = {
+    values = {
+      "0.000000", "100.000000", "200.000000", "225.000000", "250.000000", "275.000000", "300.000000", "325.000000", "350.000000", "375.000000", "400.000000", "425.000000", "450.000000", "475.000000", "500.000000", "550.000000", "600.000000", "650.000000", "700.000000", "800.000000", "900.000000", "1000.000000", "1100.000000", "1200.000000", "1300.000000", "1400.000000", "1500.000000", "1600.000000", "1700.000000", "1800.000000", "1900.000000", "2000.000000", "2200.000000", "2400.000000", "2600.000000", "2800.000000", "3000.000000", "3500.000000", "4000.000000", "5000.000000", "6000.000000", "7000.000000", "8000.000000", "9000.000000", "10000.000000"
+    },
+    valueNames = {
+      -- Actually used by factory presets:
+      -- "400", "600", "800", "1000", "1400", "1700", "1900", "2400", "3000", "4000"
+      "0", "100", "200", "225", "250", "275", "300", "325", "350", "375", "400", "425", "450", "475", "500", "550", "600", "650", "700", "800", "900", "1000", "1100", "1200", "1300", "1400", "1500", "1600", "1700", "1800", "1900", "2000", "2200", "2400", "2600", "2800", "3000", "3500", "4000", "5000", "6000", "7000", "8000", "9000", "10000"
+    },
+    tooltip = L["horizonStartTooltip"]
+  },
+  
   farclip = {
     values = {
       "0.000000", "500.000000", "1000.000000",  "1500.000000", "2000.000000", "2500.000000", "3000.000000", "3500.000000", "4000.000000", "4500.000000", "5000.000000", "5500.000000", "6000.000000", "6500.000000","7000.000000", "7500.000000", "8000.000000", "8500.000000", "9000.000000", "9500.000000", "10000.000000"
@@ -44,36 +63,35 @@ Graphit.availableSettings = {
       "0", "500", "1000", "1500", "2000", "2500", "3000", "3500", "4000", "4500", "5000", "5500", "6000", "6500", "7000", "7500", "8000", "8500", "9000", "9500", "10000"
       
     },
-    tooltip = "TODO"
+    tooltip = L["farclipTooltip"]
   },
 
+  
 
-  horizonStart = {
+  terrainLodDist = {
     values = {
-      "0.000000", "100.000000", "200.000000", "300.000000", "400.000000", "500.000000", "600.000000", "700.000000", "800.000000", "900.000000", "1000.000000", "1100.000000", "1200.000000", "1300.000000", "1400.000000", "1500.000000", "1600.000000", "1700.000000", "1800.000000", "1900.000000", "2000.000000", "2100.000000", "2200.000000", "2300.000000", "2400.000000", "2500.000000", "2600.000000", "2700.000000", "2800.000000", "2900.000000", "3000.000000", "3100.000000", "3200.000000", "3300.000000", "3400.000000", "3500.000000", "3600.000000", "3700.000000", "3800.000000", "3900.000000", "4000.000000"
+      "0.000000", "25.000000", "50.000000", "75.000000", "100.000000", "125.000000", "150.000000", "175.000000", "200.000000", "225.000000", "250.000000", "275.000000", "300.000000", "325.000000", "350.000000", "375.000000", "400.000000", "425.000000", "450.000000", "475.000000", "500.000000", "525.000000", "550.000000", "575.000000", "600.000000", "625.000000", "650.000000", "750.000000", "800.000000", "900.000000", "1000.000000", "1250.000000", "1500.000000", "1750.000000", "2000.000000", "2500.000000", "3000.000000"
     },
     valueNames = {
       -- Actually used by factory presets:
-      -- "400", "600", "800", "1000", "1400", "1700", "1900", "2400", "3000", "4000"
-      "0", "100", "200", "300", "400", "500", "600", "700", "800", "900", "1000", "1100", "1200", "1300", "1400", "1500", "1600", "1700", "1800", "1900", "2000", "2100", "2200", "2300", "2400", "2500", "2600", "2700", "2800", "2900", "3000", "3100", "3200", "3300", "3400", "3500", "3600", "3700", "3800", "3900", "4000"
+      -- "200", "225", "250", "350", "400", "500", "600", "650"
+      "0", "25", "50", "75", "100", "125", "150", "175", "200", "225", "250", "275", "300", "325", "350", "375", "400", "425", "450", "475", "500", "525", "550", "575", "600", "625", "650", "700", "800", "900", "1000", "1250", "1500", "1750", "2000", "2500", "3000"
     },
-    tooltip = "TODO"
+    tooltip = L["terrainLodDistTooltip"]
   },
-
 
   entityShadowFadeScale = {
     values = {
-      "10.000000", "15.000000", "20.000000", "25.000000", "30.000000", "35.000000", "40.000000", "45.000000", "50.000000"
+      "10.000000", "15.000000", "20.000000", "25.000000", "30.000000", "35.000000", "40.000000", "45.000000", "50.000000", "60.000000", "70.000000", "80.000000", "90.000000", "100.000000"
     },
     valueNames = {
       -- Actually used by factory presets:
       -- "10", "15", "20", "25", "30", "40", "50"
-      "10", "15", "20", "25", "30", "35", "40", "45", "50"
+      "10", "15", "20", "25", "30", "35", "40", "45", "50", "60", "70", "80", "90", "100"
     },
-    tooltip = "TODO"
+    tooltip = L["entityShadowFadeScaleTooltip"]
   },
 
-  
   entityLodDist = {
     values = {
       "5.000000", "6.000000", "7.000000", "8.000000", "9.000000", "10.000000"
@@ -86,30 +104,80 @@ Graphit.availableSettings = {
     tooltip = "TODO"
   },
   
-  terrainLodDist = {
-    values = {
-      "200.000000", "225.000000", "250.000000", "275.000000", "300.000000", "325.000000", "350.000000", "375.000000", "400.000000", "425.000000", "450.000000", "475.000000", "500.000000", "525.000000", "550.000000", "575.000000", "600.000000", "625.000000", "650.000000"
-    },
-    valueNames = {
-      -- Actually used by factory presets:
-      -- "200", "225", "250", "350", "400", "500", "600", "650"
-      "200", "225", "250", "275", "300", "325", "350", "375", "400", "425", "450", "475", "500", "525", "550", "575", "600", "625", "650"
-    },
-    tooltip = "TODO"
-  },
-  
   -- WMO = World Models ?
   wmoLodDist = {
     values = {
-      "250.000000", "300.000000", "350.000000", "400.000000"
+      "0.000000", "50.000000", "100.000000", "150.000000", "200.000000", "250.000000", "300.000000", "350.000000", "400.000000"
     },
     valueNames = {
-      "250", "300", "350", "400"
+      -- Actually used by factory presets:
+      -- "250", "300", "350", "400"
+      "0", "50", "100", "150", "200", "250", "300", "350", "400"
     },
     tooltip = "TODO"
   },
   
   
+  
+
+
+
+  -- Environment details.
+
+  lodObjectCullSize = {
+    values = {
+      "100.000000", "90.000000", "80.000000", "70.000000",  "60.000000", "50.000000", "35.000000", "30.000000", "27.000000", "22.000000", "20.000000", "19.000000", "18.000000", "16.000000", "14.000000", "10.000000", "5.000000", "1.000000"
+    },
+    valueNames = {
+      -- Actually used by factory presets:
+      -- "35", "30", "27", "22", "20", "19", "18", "16", "14"
+      "100", "90", "80", "70", "60", "50", "35", "30", "27", "22", "20", "19", "18", "16", "14", "10", "5", "1"
+    },
+    tooltip = L["lodObjectCullSizeTooltip"]
+  },
+  
+  
+  lodObjectCullDist = {
+    values = {
+      "1.000000", "5.000000", "10.000000", "15.000000", "20.000000", "25.000000", "30.000000", "31.000000", "50.000000", "75.000000", "100.000000", "125.000000", "150.000000", "175.000000", "200.000000"
+    },
+    valueNames = {
+      -- Actually used by factory presets:
+      -- "30", "31"
+      "1", "5", "10", "15", "20", "25", "30", "31", "50", "75", "100", "125", "150", "175", "200"
+    },
+    tooltip = L["lodObjectCullDistTooltip"]
+  },
+  
+  
+  lodObjectMinSize = {
+    values = {
+      "0.000000", "10.000000", "20.000000", "30.000000", "40.000000", "50.000000", "75.000000", "100.000000", "150.000000", "200.000000", "300.000000", "500.000000", "750.000000", "1000.000000"
+    },
+    valueNames = {
+      -- Actually used by factory presets:
+      -- "0", "20", "30"
+      "0", "10", "20", "30", "40", "50", "75", "100", "150", "200", "300", "500", "750", "1000"
+    },
+    tooltip = L["lodObjectMinSizeTooltip"]
+  },
+  
+  
+  
+  
+  lodObjectFadeScale = {
+    values = {
+      "50.000000", "80.000000", "90.000000", "100.000000", "125.000000", "150.000000", "200.000000", "250.000000", "300.000000"
+    },
+    valueNames = {
+      -- Actually used by factory presets:
+      -- "50", "80", "90", "100", "125", "150"
+      "50", "80", "90", "100", "125", "150", "200", "250", "300"
+    },
+    tooltip = L["lodObjectFadeScaleTooltip"]
+  },
+  
+
   
 
   -- Shadow settings
@@ -277,7 +345,12 @@ function Graphit:SetSetting(cVarName, newValueIndex)
     self:CheckForViewDistanceFactoryPreset()
   end
   
+  if ((cVarName == "lodObjectCullSize") or (cVarName == "lodObjectCullDist") or (cVarName == "lodObjectMinSize") or (cVarName == "lodObjectFadeScale")) then
+    self:CheckForEnvironmentDetailFactoryPreset()
+  end
   
+  
+
   -- Refresh the stock video options panel.
   for key, value in pairs(VideoData) do
 		_G[key].selectedID = nil;
@@ -382,7 +455,7 @@ end
 
 
 
--- Check if the current combination of texture resolution settings is one of WOW's "factory" graphicsTextureResolution defaults. 
+-- Check if the current combination of view distance settings is one of WOW's "factory" graphicsViewDistance defaults. 
 function Graphit:CheckForViewDistanceFactoryPreset()
 
   farclipValue = GetCVar("farclip")
@@ -496,6 +569,127 @@ function Graphit:CheckForViewDistanceFactoryPreset()
   
   
 end
+
+
+
+
+
+
+
+
+-- Check if the current combination of environment detail settings is one of WOW's "factory" graphicsEnvironmentDetail defaults. 
+function Graphit:CheckForEnvironmentDetailFactoryPreset()
+
+  lodObjectCullSizeValue = GetCVar("lodObjectCullSize")
+  lodObjectCullDistValue = GetCVar("lodObjectCullDist")
+  lodObjectMinSizeValue = GetCVar("lodObjectMinSize")
+  lodObjectFadeScaleValue = GetCVar("lodObjectFadeScale")
+  
+  
+
+   
+  -- 10
+  if ((tonumber(lodObjectCullSizeValue) <= 14) and
+      (tonumber(lodObjectCullDistValue) >= 30) and
+      (tonumber(lodObjectMinSizeValue) >= 20) and
+      (tonumber(lodObjectFadeScaleValue) >= 150)) then
+    -- print ("10")
+    SetCVar("graphicsEnvironmentDetail", 10)
+  -- 9
+  elseif ((tonumber(lodObjectCullSizeValue) <= 16) and
+      (tonumber(lodObjectCullDistValue) >= 30) and
+      (tonumber(lodObjectMinSizeValue) >= 30) and
+      (tonumber(lodObjectFadeScaleValue) >= 125)) then
+    -- print ("9")
+    SetCVar("graphicsEnvironmentDetail", 9)
+  -- 8
+  elseif ((tonumber(lodObjectCullSizeValue) <= 18) and
+      (tonumber(lodObjectCullDistValue) >= 31) and
+      (tonumber(lodObjectMinSizeValue) >= 0) and
+      (tonumber(lodObjectFadeScaleValue) >= 100)) then
+    -- print ("8")
+    SetCVar("graphicsEnvironmentDetail", 8)
+  -- 7
+  elseif ((tonumber(lodObjectCullSizeValue) <= 18) and
+      (tonumber(lodObjectCullDistValue) >= 30) and
+      (tonumber(lodObjectMinSizeValue) >= 0) and
+      (tonumber(lodObjectFadeScaleValue) >= 100)) then
+    -- print ("7")
+    SetCVar("graphicsEnvironmentDetail", 7)
+  -- 6
+  elseif ((tonumber(lodObjectCullSizeValue) <= 19) and
+      (tonumber(lodObjectCullDistValue) >= 30) and
+      (tonumber(lodObjectMinSizeValue) >= 0) and
+      (tonumber(lodObjectFadeScaleValue) >= 90)) then
+    -- print ("6")
+    SetCVar("graphicsEnvironmentDetail", 6)
+  -- 5
+  elseif ((tonumber(lodObjectCullSizeValue) <= 20) and
+      (tonumber(lodObjectCullDistValue) >= 30) and
+      (tonumber(lodObjectMinSizeValue) >= 0) and
+      (tonumber(lodObjectFadeScaleValue) >= 90)) then
+    -- print ("5")
+    SetCVar("graphicsEnvironmentDetail", 5)
+  -- 4
+  elseif ((tonumber(lodObjectCullSizeValue) <= 22) and
+      (tonumber(lodObjectCullDistValue) >= 30) and
+      (tonumber(lodObjectMinSizeValue) >= 0) and
+      (tonumber(lodObjectFadeScaleValue) >= 80)) then
+    -- print ("5")
+    SetCVar("graphicsEnvironmentDetail", 5)
+  -- 3
+  elseif ((tonumber(lodObjectCullSizeValue) <= 27) and
+      (tonumber(lodObjectCullDistValue) >= 30) and
+      (tonumber(lodObjectMinSizeValue) >= 0) and
+      (tonumber(lodObjectFadeScaleValue) >= 80)) then
+    -- print ("3")
+    SetCVar("graphicsEnvironmentDetail", 3)
+  -- 2
+  elseif ((tonumber(lodObjectCullSizeValue) <= 30) and
+      (tonumber(lodObjectCullDistValue) >= 30) and
+      (tonumber(lodObjectMinSizeValue) >= 0) and
+      (tonumber(lodObjectFadeScaleValue) >= 50)) then
+    -- print ("2")
+    SetCVar("graphicsEnvironmentDetail", 2)
+  -- 1
+  elseif ((tonumber(lodObjectCullSizeValue) <= 35) and
+      (tonumber(lodObjectCullDistValue) >= 30) and
+      (tonumber(lodObjectMinSizeValue) >= 0) and
+      (tonumber(lodObjectFadeScaleValue) >= 50)) then
+    -- print ("1")
+    SetCVar("graphicsEnvironmentDetail", 1)
+  
+  
+  
+  
+  
+  
+  end
+  
+  
+  -- Must set the variables again, because setting graphicsEnvironmentDetail will reset the others.
+  SetCVar("lodObjectCullSize", lodObjectCullSizeValue)
+  SetCVar("lodObjectCullDist", lodObjectCullDistValue)
+  SetCVar("lodObjectMinSize", lodObjectMinSizeValue)
+  SetCVar("lodObjectFadeScale", lodObjectFadeScaleValue)
+  
+  
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
