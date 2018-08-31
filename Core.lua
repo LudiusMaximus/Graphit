@@ -355,7 +355,8 @@ function Graphit:SetSetting(cVarName, newValueIndex)
   -- This is a little redundant because
   -- self:UpdateSettingValueLabel(cVarName, newValueIndex, self.valueLabels[cVarName])
   -- should normally suffice.
-  -- But updating all labels will let us know immediately, if something went wrong (e.g. when setting the factory preset variables also changes other variables...).
+  -- But updating all labels will let us know immediately, if something went wrong
+  -- (e.g. when setting the factory preset variables also changes other variables...).
   self:PossibleSettingsUpdate();
 
 end
@@ -763,7 +764,7 @@ function Graphit:OnEnable()
 
   self:BuildFrame()
   -- DEBUG: Comment this to have graphit window shown after reloading UI.
-  -- self:HideFrame()
+  self:HideFrame()
 
 end
 
@@ -780,7 +781,7 @@ end
 
 
 
--- If I make these members of Graphit, I cannot bind the function with setScript.
+-- If I make these members of Graphit, I cannot bind the function with SetScript.
 
 -- To calculate the average FPS.
 local Graphit_timeSinceLastUpdate = 0
@@ -847,6 +848,8 @@ function Graphit:BuildFrame()
   self.frameBuilt = true
 
 
+  -- TODO: Try this for a cooler window like in https://wow.curseforge.com/projects/monars-wardrobehelper:
+  -- local mainFrame = CreateFrame("Frame", nil, UIParent, "ButtonFrameTemplate");
   local mainFrame = CreateFrame("Frame", nil, UIParent)
   mainFrame:SetPoint("TOPRIGHT", "Minimap", "BOTTOMLEFT", 40, -30)
   mainFrame:SetFrameStrata("FULLSCREEN")
@@ -870,7 +873,7 @@ function Graphit:BuildFrame()
   -- Set the dimensions.
   local fixedWidth = 230
   local minHeight = 200
-  local maxHeight = 800
+  local maxHeight = 2000
   local initHeight = 400
   local sliderOffset = 26
 
@@ -935,9 +938,6 @@ function Graphit:BuildFrame()
   -- Set the scrollable content window.
   local scrollFrame = CreateFrame("ScrollFrame", nil, self.mainFrame)
 
-  -- scrollFrame:SetBackdrop({ bgFile = "Interface/Tooltips/UI-Tooltip-Background" })
-  -- scrollFrame:SetBackdropColor(0.0, 0.0, 1.0, 1.0)
-
   scrollFrame:SetPoint("TOPLEFT", self.mainFrame, "TOPLEFT", 0, -self.mainFrame.titleFrame:GetHeight())
   scrollFrame:SetPoint("BOTTOMRIGHT", self.mainFrame, "BOTTOMRIGHT", -sliderOffset, 6)
 
@@ -970,7 +970,6 @@ function Graphit:BuildFrame()
   -- Content frame.
   local contentFrame = CreateFrame("Frame", nil, self.mainFrame.scrollFrame)
   contentFrame:SetSize(fixedWidth - sliderOffset, 1)
-
 
   self.mainFrame.scrollFrame.contentFrame = contentFrame
 
@@ -1053,10 +1052,6 @@ function Graphit:cVarNameLabelOnEnter(cVarName, ownerFrame)
   GameTooltip:Show()
 end
 
-function Graphit:cVarNameLabelOnLeave(cVarName)
-  GameTooltip:Hide()
-end
-
 
 
 
@@ -1115,7 +1110,7 @@ function Graphit:PutSetting(cVarName, numberOfSettings, numberOfGaps, targetFram
   end )
 
   cVarNameLabelFrame:SetScript("OnLeave", function()
-    self:cVarNameLabelOnLeave(cVarName)
+    GameTooltip:Hide()
   end )
 
 
