@@ -1,10 +1,15 @@
 
-
 Graphit = LibStub("AceAddon-3.0"):NewAddon("Graphit", "AceConsole-3.0", "AceEvent-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("Graphit")
 
 Graphit.version = "1.0"
 
+
+local defaults = {
+  global = {
+    todoPresets = {}
+  }
+}
 
 
 Graphit.availableSettingsIndex = {
@@ -38,328 +43,273 @@ Graphit.availableSettingsIndex = {
 
 Graphit.availableSettings = {
 
-  -- ############################################
-  -- ############# View distance  ###############
-  -- ############################################
+  -- #########################################
+  -- ############# View distance #############
+  -- #########################################
 
   horizonStart = {
-    values = {
-      "0.000000", "100.000000", "200.000000", "225.000000", "250.000000", "275.000000", "300.000000", "325.000000", "350.000000", "375.000000", "400.000000", "425.000000", "450.000000", "475.000000", "500.000000", "550.000000", "600.000000", "650.000000", "700.000000", "800.000000", "900.000000", "1000.000000", "1100.000000", "1200.000000", "1300.000000", "1400.000000", "1500.000000", "1600.000000", "1700.000000", "1800.000000", "1900.000000", "2000.000000", "2200.000000", "2400.000000", "2600.000000", "2800.000000", "3000.000000", "3500.000000", "4000.000000", "5000.000000", "6000.000000", "7000.000000", "8000.000000", "9000.000000", "10000.000000"
-    },
-    valueNames = {
-      -- Actually used by Blizzard presets:
-      -- "400", "600", "800", "1000", "1400", "1700", "1900", "2400", "3000", "4000"
-      "0", "100", "200", "225", "250", "275", "300", "325", "350", "375", "400", "425", "450", "475", "500", "550", "600", "650", "700", "800", "900", "1000", "1100", "1200", "1300", "1400", "1500", "1600", "1700", "1800", "1900", "2000", "2200", "2400", "2600", "2800", "3000", "3500", "4000", "5000", "6000", "7000", "8000", "9000", "10000"
-    },
-    tooltip = L["horizonStartTooltip"]
+          isContinuous = true,
+          values = {
+            "0.000000", "100.000000", "200.000000", "225.000000", "250.000000", "275.000000", "300.000000", "325.000000", "350.000000", "375.000000", "400.000000", "425.000000", "450.000000", "475.000000", "500.000000", "550.000000", "600.000000", "650.000000", "700.000000", "800.000000", "900.000000", "1000.000000", "1100.000000", "1200.000000", "1300.000000", "1400.000000", "1500.000000", "1600.000000", "1700.000000", "1800.000000", "1900.000000", "2000.000000", "2200.000000", "2400.000000", "2600.000000", "2800.000000", "3000.000000", "3500.000000", "4000.000000", "4500.000000", "5000.000000", "6000.000000", "7000.000000", "8000.000000", "9000.000000", "10000.000000"
+          },
+          valueNames = {
+            -- Actually used by Blizzard defaults:
+            -- "400", "600", "800", "1000", "1400", "1700", "1900", "2400", "3000", "4000"
+            "0", "100", "200", "225", "250", "275", "300", "325", "350", "375", "400", "425", "450", "475", "500", "550", "600", "650", "700", "800", "900", "1000", "1100", "1200", "1300", "1400", "1500", "1600", "1700", "1800", "1900", "2000", "2200", "2400", "2600", "2800", "3000", "3500", "4000", "4500", "5000", "6000", "7000", "8000", "9000", "10000"
+          },
+          tooltip = L["horizonStartTooltip"]
   },
-
   farclip = {
-    values = {
-      "0.000000", "500.000000", "1000.000000",  "1500.000000", "2000.000000", "2500.000000", "3000.000000", "3500.000000", "4000.000000", "4500.000000", "5000.000000", "5500.000000", "6000.000000", "6500.000000","7000.000000", "7500.000000", "8000.000000", "8500.000000", "9000.000000", "9500.000000", "10000.000000"
-    },
-    valueNames = {
-      -- Actually used by Blizzard presets:
-      -- "1500", "2000", "3000", "5000", "6000", "7000", "8000", "10000"
-      "0", "500", "1000", "1500", "2000", "2500", "3000", "3500", "4000", "4500", "5000", "5500", "6000", "6500", "7000", "7500", "8000", "8500", "9000", "9500", "10000"
+          isContinuous = true,
+          values = {
+            "0.000000", "500.000000", "1000.000000",  "1500.000000", "2000.000000", "2500.000000", "3000.000000", "3500.000000", "4000.000000", "4500.000000", "5000.000000", "5500.000000", "6000.000000", "6500.000000","7000.000000", "7500.000000", "8000.000000", "8500.000000", "9000.000000", "9500.000000", "10000.000000"
+          },
+          valueNames = {
+            -- Actually used by Blizzard defaults:
+            -- "1500", "2000", "3000", "5000", "6000", "7000", "8000", "10000"
+            "0", "500", "1000", "1500", "2000", "2500", "3000", "3500", "4000", "4500", "5000", "5500", "6000", "6500", "7000", "7500", "8000", "8500", "9000", "9500", "10000"
 
-    },
-    tooltip = L["farclipTooltip"]
+          },
+          tooltip = L["farclipTooltip"]
   },
-
   terrainLodDist = {
-    values = {
-      "0.000000", "25.000000", "50.000000", "75.000000", "100.000000", "125.000000", "150.000000", "175.000000", "200.000000", "225.000000", "250.000000", "275.000000", "300.000000", "325.000000", "350.000000", "375.000000", "400.000000", "425.000000", "450.000000", "475.000000", "500.000000", "525.000000", "550.000000", "575.000000", "600.000000", "625.000000", "650.000000", "750.000000", "800.000000", "900.000000", "1000.000000", "1250.000000", "1500.000000", "1750.000000", "2000.000000", "2500.000000", "3000.000000"
-    },
-    valueNames = {
-      -- Actually used by Blizzard presets:
-      -- "200", "225", "250", "350", "400", "500", "600", "650"
-      "0", "25", "50", "75", "100", "125", "150", "175", "200", "225", "250", "275", "300", "325", "350", "375", "400", "425", "450", "475", "500", "525", "550", "575", "600", "625", "650", "700", "800", "900", "1000", "1250", "1500", "1750", "2000", "2500", "3000"
-    },
-    tooltip = L["terrainLodDistTooltip"]
+          isContinuous = true,
+          values = {
+            "0.000000", "25.000000", "50.000000", "75.000000", "100.000000", "125.000000", "150.000000", "175.000000", "200.000000", "225.000000", "250.000000", "275.000000", "300.000000", "325.000000", "350.000000", "375.000000", "400.000000", "425.000000", "450.000000", "475.000000", "500.000000", "525.000000", "550.000000", "575.000000", "600.000000", "625.000000", "650.000000", "750.000000", "800.000000", "900.000000", "1000.000000", "1250.000000", "1500.000000", "1750.000000", "2000.000000", "2500.000000", "3000.000000"
+          },
+          valueNames = {
+            -- Actually used by Blizzard defaults:
+            -- "200", "225", "250", "350", "400", "500", "600", "650"
+            "0", "25", "50", "75", "100", "125", "150", "175", "200", "225", "250", "275", "300", "325", "350", "375", "400", "425", "450", "475", "500", "525", "550", "575", "600", "625", "650", "700", "800", "900", "1000", "1250", "1500", "1750", "2000", "2500", "3000"
+          },
+          tooltip = L["terrainLodDistTooltip"]
   },
-
-  entityShadowFadeScale = {
-    values = {
-      "10.000000", "15.000000", "20.000000", "25.000000", "30.000000", "35.000000", "40.000000", "45.000000", "50.000000", "60.000000", "70.000000", "80.000000", "90.000000", "100.000000"
-    },
-    valueNames = {
-      -- Actually used by Blizzard presets:
-      -- "10", "15", "20", "25", "30", "40", "50"
-      "10", "15", "20", "25", "30", "35", "40", "45", "50", "60", "70", "80", "90", "100"
-    },
-    tooltip = L["entityShadowFadeScaleTooltip"]
-  },
-
   entityLodDist = {
-    values = {
-      "5.000000", "6.000000", "7.000000", "8.000000", "9.000000", "10.000000"
-    },
-    valueNames = {
-      -- Actually used by Blizzard presets:
-      -- "5", "7", "8", "10"
-      "5", "6", "7", "8", "9", "10"
-    },
-    tooltip = L["entityLodDistTooltip"]
+          isContinuous = true,
+          values = {
+            "5.000000", "6.000000", "7.000000", "8.000000", "9.000000", "10.000000"
+          },
+          valueNames = {
+            -- Actually used by Blizzard defaults:
+            -- "5", "7", "8", "10"
+            "5", "6", "7", "8", "9", "10"
+          },
+          tooltip = L["entityLodDistTooltip"]
   },
-
   wmoLodDist = {
-    values = {
-      "0.000000", "50.000000", "100.000000", "150.000000", "200.000000", "250.000000", "300.000000", "350.000000", "400.000000"
-    },
-    valueNames = {
-      -- Actually used by Blizzard presets:
-      -- "250", "300", "350", "400"
-      "0", "50", "100", "150", "200", "250", "300", "350", "400"
-    },
-    tooltip = L["wmoLodDistTooltip"]
+          isContinuous = true,
+          values = {
+            "0.000000", "50.000000", "100.000000", "150.000000", "200.000000", "250.000000", "300.000000", "350.000000", "400.000000"
+          },
+          valueNames = {
+            -- Actually used by Blizzard defaults:
+            -- "250", "300", "350", "400"
+            "0", "50", "100", "150", "200", "250", "300", "350", "400"
+          },
+          tooltip = L["wmoLodDistTooltip"]
+  },
+  entityShadowFadeScale = {
+          isContinuous = true,
+          values = {
+            "10.000000", "15.000000", "20.000000", "25.000000", "30.000000", "35.000000", "40.000000", "45.000000", "50.000000", "60.000000", "70.000000", "80.000000", "90.000000", "100.000000"
+          },
+          valueNames = {
+            -- Actually used by Blizzard defaults:
+            -- "10", "15", "20", "25", "30", "40", "50"
+            "10", "15", "20", "25", "30", "35", "40", "45", "50", "60", "70", "80", "90", "100"
+          },
+          tooltip = L["entityShadowFadeScaleTooltip"]
   },
 
 
 
-
-  -- ##################################################
-  -- ############# Environment details ################
-  -- ##################################################
+  -- ###############################################
+  -- ############# Environment details #############
+  -- ###############################################
 
   lodObjectCullSize = {
-    values = {
-      "100.000000", "90.000000", "80.000000", "70.000000",  "60.000000", "50.000000", "35.000000", "30.000000", "27.000000", "22.000000", "20.000000", "19.000000", "18.000000", "16.000000", "14.000000", "10.000000", "5.000000", "1.000000"
-    },
-    valueNames = {
-      -- Actually used by Blizzard presets:
-      -- "35", "30", "27", "22", "20", "19", "18", "16", "14"
-      "100", "90", "80", "70", "60", "50", "35", "30", "27", "22", "20", "19", "18", "16", "14", "10", "5", "1"
-    },
-    tooltip = L["lodObjectCullSizeTooltip"]
+          isContinuous = true,
+          values = {
+            "100.000000", "90.000000", "80.000000", "70.000000",  "60.000000", "50.000000", "35.000000", "30.000000", "27.000000", "22.000000", "20.000000", "19.000000", "18.000000", "16.000000", "14.000000", "10.000000", "5.000000", "1.000000"
+          },
+          valueNames = {
+            -- Actually used by Blizzard defaults:
+            -- "35", "30", "27", "22", "20", "19", "18", "16", "14"
+            "100", "90", "80", "70", "60", "50", "35", "30", "27", "22", "20", "19", "18", "16", "14", "10", "5", "1"
+          },
+          tooltip = L["lodObjectCullSizeTooltip"]
   },
-
   lodObjectCullDist = {
-    values = {
-      "1.000000", "5.000000", "10.000000", "15.000000", "20.000000", "25.000000", "30.000000", "31.000000", "50.000000", "75.000000", "100.000000", "125.000000", "150.000000", "175.000000", "200.000000"
-    },
-    valueNames = {
-      -- Actually used by Blizzard presets:
-      -- "30", "31"
-      "1", "5", "10", "15", "20", "25", "30", "31", "50", "75", "100", "125", "150", "175", "200"
-    },
-    tooltip = L["lodObjectCullDistTooltip"]
+          isContinuous = true,
+          values = {
+            "1.000000", "5.000000", "10.000000", "15.000000", "20.000000", "25.000000", "30.000000", "31.000000", "50.000000", "75.000000", "100.000000", "125.000000", "150.000000", "175.000000", "200.000000"
+          },
+          valueNames = {
+            -- Actually used by Blizzard defaults:
+            -- "30", "31"
+            "1", "5", "10", "15", "20", "25", "30", "31", "50", "75", "100", "125", "150", "175", "200"
+          },
+          tooltip = L["lodObjectCullDistTooltip"]
   },
-
   lodObjectMinSize = {
-    values = {
-      "0.000000", "10.000000", "20.000000", "30.000000", "40.000000", "50.000000", "75.000000", "100.000000", "150.000000", "200.000000", "250.000000", "500.000000", "750.000000", "1000.000000"
-    },
-    valueNames = {
-      -- Actually used by Blizzard presets:
-      -- "0", "20", "30"
-      "0", "10", "20", "30", "40", "50", "75", "100", "150", "200", "250", "500", "750", "1000"
-    },
-    tooltip = L["lodObjectMinSizeTooltip"]
+          isContinuous = true,
+          values = {
+            "0.000000", "10.000000", "20.000000", "30.000000", "40.000000", "50.000000", "75.000000", "100.000000", "150.000000", "200.000000", "250.000000", "500.000000", "750.000000", "1000.000000"
+          },
+          valueNames = {
+            -- Actually used by Blizzard defaults:
+            -- "0", "20", "30"
+            "0", "10", "20", "30", "40", "50", "75", "100", "150", "200", "250", "500", "750", "1000"
+          },
+          tooltip = L["lodObjectMinSizeTooltip"]
   },
-
   lodObjectFadeScale = {
-    values = {
-      "50.000000", "60.000000", "70.000000", "80.000000", "90.000000", "100.000000", "125.000000", "150.000000", "200.000000", "250.000000", "300.000000"
-    },
-    valueNames = {
-      -- Actually used by Blizzard presets:
-      -- "50", "80", "90", "100", "125", "150"
-      "50", "60", "70", "80", "90", "100", "125", "150", "200", "250", "300"
-    },
-    tooltip = L["lodObjectFadeScaleTooltip"]
+          isContinuous = true,
+          values = {
+            "50.000000", "60.000000", "70.000000", "80.000000", "90.000000", "100.000000", "125.000000", "150.000000", "200.000000", "250.000000", "300.000000"
+          },
+          valueNames = {
+            -- Actually used by Blizzard defaults:
+            -- "50", "80", "90", "100", "125", "150"
+            "50", "60", "70", "80", "90", "100", "125", "150", "200", "250", "300"
+          },
+          tooltip = L["lodObjectFadeScaleTooltip"]
   },
 
 
 
-
-  -- ######################################
-  -- ############# Shadows ################
-  -- ######################################
+  -- ###################################
+  -- ############# Shadows #############
+  -- ###################################
 
   shadowMode = {
-    values = {
-      "0.000000", "1.000000", "2.000000", "3.000000"
-    },
-    valueNames = {
-      "0", "1", "2", "3"
-    },
-    tooltip = L["shadowModeTooltip"]
+          values = {
+            "0.000000", "1.000000", "2.000000", "3.000000"
+          },
+          valueNames = {
+            "0", "1", "2", "3"
+          },
+          tooltip = L["shadowModeTooltip"]
   },
-
   shadowSoft = {
-    values = {
-      "0.000000", "1.000000"
-    },
-    valueNames = {
-      "off", "on"
-    },
-    tooltip = L["shadowSoftTooltip"]
+          values = {
+            "0.000000", "1.000000"
+          },
+          valueNames = {
+            "off", "on"
+          },
+          tooltip = L["shadowSoftTooltip"]
   },
-
   shadowTextureSize = {
-    values = {
-      "1024.000000", "2048.000000"
-    },
-    valueNames = {
-      "1024", "2048"
-    },
-    tooltip = L["shadowTextureSizeTooltip"]
+          values = {
+            "1024.000000", "2048.000000"
+          },
+          valueNames = {
+            "1024", "2048"
+          },
+          tooltip = L["shadowTextureSizeTooltip"]
   },
 
 
 
+  -- ####################################
+  -- ############# Textures #############
+  -- ####################################
 
   graphicsTextureFiltering = {
-    values = {
-      "1", "2", "3", "4", "5", "6"
-    },
-    valueNames = {
-      "Bilinear", "Trilinear", "2x Anisotropic", "4x Anisotropic", "8x Anisotropic", "16x Anisotropic"
-    },
-    tooltip = L["graphicsTextureFilteringTooltip"]
+          values = {
+            "1", "2", "3", "4", "5", "6"
+          },
+          valueNames = {
+            "Bilinear", "Trilinear", "2x Anisotropic", "4x Anisotropic", "8x Anisotropic", "16x Anisotropic"
+          },
+          tooltip = L["graphicsTextureFilteringTooltip"]
   },
-
-
-
 
   projectedTextures = {
-    values = {
-      "0.000000", "1.000000"
-    },
-    valueNames = {
-      "off", "on"
-    },
-    tooltip = L["projectedTexturesTooltip"]
+          values = {
+            "0.000000", "1.000000"
+          },
+          valueNames = {
+            "off", "on"
+          },
+          tooltip = L["projectedTexturesTooltip"]
   },
 
 
 
-
-  -- #################################################
-  -- ############# Texture resolution ################
-  -- #################################################
+  -- ##############################################
+  -- ############# Texture resolution #############
+  -- ##############################################
   worldBaseMip = {
-    values = {
-      "2.000000", "1.000000", "0.000000"
-    },
-    valueNames = {
-      "low", "medium", "high"
-    },
-    tooltip = L["worldBaseMipTooltip"]
+          values = {
+            "2.000000", "1.000000", "0.000000"
+          },
+          valueNames = {
+            "low", "medium", "high"
+          },
+          tooltip = L["worldBaseMipTooltip"]
   },
-
   terrainMipLevel = {
-    values = {
-      "1.000000", "0.000000"
-    },
-    valueNames = {
-      "low", "high"
-    },
-    tooltip = L["terrainMipLevelTooltip"]
+          values = {
+            "1.000000", "0.000000"
+          },
+          valueNames = {
+            "low", "high"
+          },
+          tooltip = L["terrainMipLevelTooltip"]
+  },
+  componentTextureLevel = {
+          values = {
+            "1.000000", "0.000000"
+          },
+          valueNames = {
+            "low", "high"
+          },
+          tooltip = L["componentTextureLevelTooltip"]
   },
 
-  componentTextureLevel = {
-    values = {
-      "1.000000", "0.000000"
-    },
-    valueNames = {
-      "low", "high"
-    },
-    tooltip = L["componentTextureLevelTooltip"]
-  }--,
-
-}
-
-
-
-local defaults = {
-  global = {
-    todoPresets = {}
-  }
 }
 
 
 
 
--- Returns the index of this CVAR's current value.
--- This is necessary to know which (if any) is the next (+) or previous (-) value.
-function Graphit:GetValueIndex(cVarName)
-
-  local value = GetCVar(cVarName)
-
-  local valueIndex = 1
-  for k,v in pairs(self.availableSettings[cVarName].values) do
-    if ((v == value) or (tonumber(v) == tonumber(value))) then
-      break
-    end
-    valueIndex = valueIndex + 1
-  end
-
-  return valueIndex
-end
 
 
 
-function Graphit:SetSetting(cVarName, newValueIndex)
-
-  -- Set the CVAR.
-  local newValue = self.availableSettings[cVarName].values[newValueIndex]
-  SetCVar(cVarName, newValue)
-
-  -- self:Print ("Setting " .. cVarName .. " to " .. newValue)
-
-
-  -- projectedTextures needs very peculiar special treatment:
-  -- graphicsProjectedTextures has to be set as well, even though in case of "enabled"
-  -- "graphicsProjectedTextures 2" is not even saved in config.wtf.
-  if (cVarName == "projectedTextures") then
-    if (newValueIndex == 1) then   -- disabled
-      SetCVar("graphicsProjectedTextures", 1)
-    elseif (newValueIndex == 2) then   -- enabled
-      SetCVar("graphicsProjectedTextures", 2)
-    end
-  end
-
-
-  -- Check if factory presets of the video options panel are fulfilled.
-  if ((cVarName == "shadowMode") or (cVarName == "shadowSoft") or (cVarName == "shadowTextureSize")) then
-    self:CheckForShadowFactoryPreset()
-  end
-
-  if ((cVarName == "worldBaseMip") or (cVarName == "terrainMipLevel") or (cVarName == "componentTextureLevel")) then
-    self:CheckForTextureResolutionFactoryPreset()
-  end
-
-  if ((cVarName == "farclip") or (cVarName == "horizonStart") or (cVarName == "entityShadowFadeScale") or (cVarName == "entityLodDist") or (cVarName == "terrainLodDist") or (cVarName == "wmoLodDist")) then
-    self:CheckForViewDistanceFactoryPreset()
-  end
-
-  if ((cVarName == "lodObjectCullSize") or (cVarName == "lodObjectCullDist") or (cVarName == "lodObjectMinSize") or (cVarName == "lodObjectFadeScale")) then
-    self:CheckForEnvironmentDetailFactoryPreset()
-  end
 
 
 
-  -- Refresh the stock video options panel.
-  for k,v in pairs(VideoData) do
-		_G[k].selectedID = nil;
-	end
-	VideoOptionsPanel_Refresh(Display_);
-	VideoOptionsPanel_Refresh(Graphics_);
-	VideoOptionsPanel_Refresh(RaidGraphics_);
-	VideoOptionsPanel_Refresh(Advanced_);
 
+Graphit.blizzardDefaults = {
 
-  -- Refresh all GUI labels and sliders of graphit.
-  -- This is a little redundant because
-  -- self:UpdateSettingValueLabel(cVarName, newValueIndex, self.valueLabels[cVarName])
-  -- should normally suffice.
-  -- But updating all labels will let us know immediately, if something went wrong
-  -- (e.g. when setting the factory preset variables also changes other variables...).
-  self:PossibleSettingsUpdate();
+  ["Shadow quality"] = {
+    if_vars =                         {"shadowMode", "shadowSoft", "shadowTextureSize"}, then_vars = {"graphicsShadowQuality"},
+    defaults = {
+      {name = "Ultra high", if_vals = {3,            1,            2048               }, then_vals = {6}},
+      {name = "Ultra",      if_vals = {2,            1,            2048               }, then_vals = {5}},
+      {name = "High",       if_vals = {2,            0,            2048               }, then_vals = {4}},
+      {name = "Good",       if_vals = {1,            0,            1024               }, then_vals = {3}},
+      {name = "Fair",       if_vals = {0,            0,            1024               }, then_vals = {2}}
+    },
+    custom_then_vals                                                                               = {0}
+  },
+  
+  ["Texture Resolution"] = {
+    if_vars =                   {"worldBaseMip", "terrainMipLevel", "componentTextureLevel"}, then_vars = {"graphicsTextureResolution"},
+    defaults = {
+      {name = "High", if_vals = {0,              0,                 0                      }, then_vals = {3}},
+      {name = "Fair", if_vals = {1,              1,                 1                      }, then_vals = {2}},
+      {name = "Low",  if_vals = {2,              1,                 1                      }, then_vals = {1}}
+    },
+    custom_then_vals                                                                                    = {0}
+  },
+  
+  
+ 
+ 
 
-end
+}
 
 
 
@@ -367,55 +317,109 @@ end
 -- Check if the current combination of shadow settings is one of WOW's "factory" graphicsShadowQuality defaults.
 function Graphit:CheckForShadowFactoryPreset()
 
-  shadowModeValue = GetCVar("shadowMode")
-  shadowSoftValue = GetCVar("shadowSoft")
-  shadowTextureSizeValue = GetCVar("shadowTextureSize")
-  -- print (shadowModeValue .. " " .. shadowSoftValue .. " " .. shadowTextureSizeValue)
+  local currentSetting = self.blizzardDefaults["Shadow quality"]
 
-  -- Ultra High
-  if ((tonumber(shadowModeValue) == 3) and
-      (tonumber(shadowSoftValue) == 1) and
-      (tonumber(shadowTextureSizeValue) == 2048)) then
-    -- print ("Ultra High")
-    return SetCVar("graphicsShadowQuality", 6)
-  end
-  -- Ultra
-  if ((tonumber(shadowModeValue) == 2) and
-      (tonumber(shadowSoftValue) == 1) and
-      (tonumber(shadowTextureSizeValue) == 2048)) then
-    -- print ("Ultra")
-    return SetCVar("graphicsShadowQuality", 5)
-  end
-  -- High
-  if ((tonumber(shadowModeValue) == 2) and
-      (tonumber(shadowSoftValue) == 0) and
-      (tonumber(shadowTextureSizeValue) == 2048)) then
-    -- print ("High")
-    return SetCVar("graphicsShadowQuality", 4)
-  end
-  -- Good
-  if ((tonumber(shadowModeValue) == 1) and
-      (tonumber(shadowSoftValue) == 0) and
-      (tonumber(shadowTextureSizeValue) == 1024)) then
-    -- print ("Good")
-    return SetCVar("graphicsShadowQuality", 3)
-  end
-  -- Fair
-  if ((tonumber(shadowModeValue) == 0) and
-      (tonumber(shadowSoftValue) == 0) and
-      (tonumber(shadowTextureSizeValue) == 1024)) then
-    -- print ("Fair")
-    return SetCVar("graphicsShadowQuality", 2)
+  local custom = true
+  for _, default in pairs(currentSetting.defaults) do
+    -- print("Checking if", default.name, "is fulfilled...")
+
+    local fulfilled = true
+    for i, if_var in pairs(currentSetting.if_vars) do
+      -- print("Is", if_var,  GetCVar(if_var), "==", default.if_vals[i], "?")
+      if (tonumber(GetCVar(if_var)) ~= tonumber(default.if_vals[i])) then
+        -- print("No!")
+        fulfilled = false
+        break
+      end
+      -- print("Yes!")
+    end
+
+    if (fulfilled) then
+      -- print(default.name, "is fulfilled!")
+      for i, then_var in pairs(currentSetting.then_vars) do
+        -- print("Setting", then_var, "to", default.then_vals[i], ".")
+        SetCVar(then_var, default.then_vals[i])
+      end
+      custom = false
+      break
+    end
   end
 
-  -- print ("Custom")
-  SetCVar("graphicsShadowQuality", 0)
-  -- Must set the variables again, because setting graphicsShadowQuality to 0 will reset the others.
-  SetCVar("shadowMode", shadowModeValue)
-  SetCVar("shadowSoft", shadowSoftValue)
-  SetCVar("shadowTextureSize", shadowTextureSizeValue)
+  -- Must store and restore the current if_vars, because setting then_vars might reset them.
+  if (custom) then
+    local currentIfVals = {}
+
+    for i, if_var in pairs(currentSetting.if_vars) do
+      -- print("Storing", if_var, "which is currently", GetCVar(if_var))
+      currentIfVals[i] = GetCVar(if_var)
+    end
+    for i, then_var in pairs(currentSetting.then_vars) do
+      -- print("Setting", then_var, "to", currentSetting.custom_then_vals[i], ".")
+      SetCVar(then_var, currentSetting.custom_then_vals[i])
+    end
+    for i, if_var in pairs(currentSetting.if_vars) do
+      -- print("Restoring", if_var, "back to", currentIfVals[i])
+      SetCVar(if_var, currentIfVals[i])
+    end
+  end
+
+
 
 end
+
+
+
+
+
+  -- shadowModeValue = GetCVar("shadowMode")
+  -- shadowSoftValue = GetCVar("shadowSoft")
+  -- shadowTextureSizeValue = GetCVar("shadowTextureSize")
+  -- -- print (shadowModeValue .. " " .. shadowSoftValue .. " " .. shadowTextureSizeValue)
+
+  -- -- Ultra High
+  -- if ((tonumber(shadowModeValue) == 3) and
+      -- (tonumber(shadowSoftValue) == 1) and
+      -- (tonumber(shadowTextureSizeValue) == 2048)) then
+    -- -- print ("Ultra High")
+    -- return SetCVar("graphicsShadowQuality", 6)
+  -- end
+  -- -- Ultra
+  -- if ((tonumber(shadowModeValue) == 2) and
+      -- (tonumber(shadowSoftValue) == 1) and
+      -- (tonumber(shadowTextureSizeValue) == 2048)) then
+    -- -- print ("Ultra")
+    -- return SetCVar("graphicsShadowQuality", 5)
+  -- end
+  -- -- High
+  -- if ((tonumber(shadowModeValue) == 2) and
+      -- (tonumber(shadowSoftValue) == 0) and
+      -- (tonumber(shadowTextureSizeValue) == 2048)) then
+    -- -- print ("High")
+    -- return SetCVar("graphicsShadowQuality", 4)
+  -- end
+  -- -- Good
+  -- if ((tonumber(shadowModeValue) == 1) and
+      -- (tonumber(shadowSoftValue) == 0) and
+      -- (tonumber(shadowTextureSizeValue) == 1024)) then
+    -- -- print ("Good")
+    -- return SetCVar("graphicsShadowQuality", 3)
+  -- end
+  -- -- Fair
+  -- if ((tonumber(shadowModeValue) == 0) and
+      -- (tonumber(shadowSoftValue) == 0) and
+      -- (tonumber(shadowTextureSizeValue) == 1024)) then
+    -- -- print ("Fair")
+    -- return SetCVar("graphicsShadowQuality", 2)
+  -- end
+
+  -- -- print ("Custom")
+  -- SetCVar("graphicsShadowQuality", 0)
+  -- -- Must set the variables again, because setting graphicsShadowQuality to 0 will reset the others.
+  -- SetCVar("shadowMode", shadowModeValue)
+  -- SetCVar("shadowSoft", shadowSoftValue)
+  -- SetCVar("shadowTextureSize", shadowTextureSizeValue)
+
+-- end
 
 
 
@@ -668,6 +672,92 @@ end
 
 
 
+
+-- Returns the index of this CVAR's current value.
+-- This is necessary to know which (if any) is the next (+) or previous (-) value.
+function Graphit:GetValueIndex(cVarName)
+
+  local value = GetCVar(cVarName)
+
+  -- print("Current value of", cVarName, "is", value)
+
+  local valueIndex = 1
+  for k, v in pairs(self.availableSettings[cVarName].values) do
+    if ((v == value) or (tonumber(v) == tonumber(value))) then
+      break
+    end
+    valueIndex = valueIndex + 1
+  end
+
+  return valueIndex
+end
+
+
+
+
+function Graphit:SetSetting(cVarName, newValueIndex)
+
+  -- Set the CVAR.
+  local newValue = self.availableSettings[cVarName].values[newValueIndex]
+  SetCVar(cVarName, newValue)
+
+  -- self:Print ("Setting " .. cVarName .. " to " .. newValue)
+
+
+  -- projectedTextures needs very peculiar special treatment:
+  -- graphicsProjectedTextures has to be set as well, even though in case of "enabled"
+  -- "graphicsProjectedTextures 2" is not even saved in config.wtf.
+  if (cVarName == "projectedTextures") then
+    if (newValueIndex == 1) then   -- disabled
+      SetCVar("graphicsProjectedTextures", 1)
+    elseif (newValueIndex == 2) then   -- enabled
+      SetCVar("graphicsProjectedTextures", 2)
+    end
+  end
+
+
+  -- Check if factory presets of the video options panel are fulfilled.
+  if ((cVarName == "shadowMode") or (cVarName == "shadowSoft") or (cVarName == "shadowTextureSize")) then
+    self:CheckForShadowFactoryPreset()
+  end
+
+  if ((cVarName == "worldBaseMip") or (cVarName == "terrainMipLevel") or (cVarName == "componentTextureLevel")) then
+    self:CheckForTextureResolutionFactoryPreset()
+  end
+
+  if ((cVarName == "farclip") or (cVarName == "horizonStart") or (cVarName == "entityShadowFadeScale") or (cVarName == "entityLodDist") or (cVarName == "terrainLodDist") or (cVarName == "wmoLodDist")) then
+    self:CheckForViewDistanceFactoryPreset()
+  end
+
+  if ((cVarName == "lodObjectCullSize") or (cVarName == "lodObjectCullDist") or (cVarName == "lodObjectMinSize") or (cVarName == "lodObjectFadeScale")) then
+    self:CheckForEnvironmentDetailFactoryPreset()
+  end
+
+
+
+  -- Refresh the stock video options panel.
+  for k, v in pairs(VideoData) do
+		_G[k].selectedID = nil;
+	end
+	VideoOptionsPanel_Refresh(Display_);
+	VideoOptionsPanel_Refresh(Graphics_);
+	VideoOptionsPanel_Refresh(RaidGraphics_);
+	VideoOptionsPanel_Refresh(Advanced_);
+
+
+  -- Refresh all GUI labels and sliders of graphit.
+  -- This is a little redundant because
+  -- self:UpdateSettingValueLabel(cVarName, newValueIndex, self.valueLabels[cVarName])
+  -- should normally suffice.
+  -- But updating all labels will let us know immediately, if something went wrong
+  -- (e.g. when setting the factory preset variables also changes other variables...).
+  self:PossibleSettingsUpdate();
+
+end
+
+
+
+
 function Graphit:UpdateSettingValueLabel(cVarName, newValueIndex, label)
 
   -- print ("Putting label " .. newValueIndex .. " for " .. cVarName)
@@ -691,7 +781,7 @@ function Graphit:TryToSetSetting(cVarName, increase)
   local valueIndex = self:GetValueIndex(cVarName)
 
   local numberOfSettings = 0
-  for k,v in pairs(self.availableSettings[cVarName].values) do
+  for k, v in pairs(self.availableSettings[cVarName].values) do
     -- print (cVarName .. ": " .. k .. ", " .. v)
     numberOfSettings = numberOfSettings + 1
   end
@@ -979,7 +1069,7 @@ function Graphit:BuildFrame()
 
   local numberOfSettings = 0
   local numberOfGaps = 0
-  for k,v in pairs(self.availableSettingsIndex) do
+  for k, v in pairs(self.availableSettingsIndex) do
     -- print (v .. " is at " .. k)
 
     self:PutSetting(v, numberOfSettings, numberOfGaps, self.mainFrame.scrollFrame.contentFrame)
@@ -1135,7 +1225,7 @@ function Graphit:PutSetting(cVarName, numberOfSettings, numberOfGaps, targetFram
 
   -- Get the number of values for this setting.
   local numberOfSettings = 0
-  for k,v in pairs(self.availableSettings[cVarName].values) do
+  for k, v in pairs(self.availableSettings[cVarName].values) do
     -- print (cVarName .. ": " .. k .. ", " .. v)
     numberOfSettings = numberOfSettings + 1
   end
@@ -1200,7 +1290,7 @@ end
 function Graphit:PossibleSettingsUpdate(event, arg1)
   -- self:Print("PossibleSettingsUpdate")
 
-  for k,v in pairs(self.availableSettingsIndex) do
+  for k, v in pairs(self.availableSettingsIndex) do
     if (v ~= "---gap---") then
       self:UpdateSettingValueLabel(v, self:GetValueIndex(v), self.valueLabels[v])
     end

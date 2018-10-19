@@ -1,17 +1,17 @@
 ## Interface: 80000
 ## Title: Graphit
+## Author: LudiusMaximus
 ## Notes: Lets you fine-tune your graphics settings, store them as presets and assign these to world zones.
-## Author: Ludius
-## Version: 0.1
 ## OptionalDeps: Ace3
 ## SavedVariables:GraphitDB
-
+## Version: 1.0
+## X-Donate: PayPal:ludiusmaximus@gmail.com
+## X-License: The MIT License (MIT)
 
 ## Embedded libraries
 embeds.xml
 
 ## Locale Translations
 Locales\Locales.xml
-
 
 Core.lua
