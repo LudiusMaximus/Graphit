@@ -1,4 +1,4 @@
-## Interface: 80100
+## Interface: 80205
 ## Title: Graphit
 ## Author: LudiusMaximus
 ## Notes: Lets you fine-tune your graphics settings, store them as presets and assign these to world zones.
