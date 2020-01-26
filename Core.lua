@@ -832,6 +832,7 @@ function Graphit:OnEnable()
   self:RegisterChatCommand("grt", "ChatCommand")
 
   self:RegisterEvent("ZONE_CHANGED", "ZoneChanged");
+  self:RegisterEvent("ZONE_CHANGED_NEW_AREA", "ZoneChanged");
   self:RegisterEvent("ZONE_CHANGED_INDOORS", "ZoneChanged");
 
 
