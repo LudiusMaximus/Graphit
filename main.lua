@@ -1,0 +1,3 @@
+local folderName, addon = ...
+
+print(folderName, "begins")

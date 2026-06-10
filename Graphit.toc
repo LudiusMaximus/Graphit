@@ -1,0 +1,19 @@
+## Interface: 120005
+## Version: @project-version@
+## Title: Graphit
+## IconAtlas: UI-Frame-DastardlyDuos-icon-Speed
+## Author: LudiusMaximus
+## Notes: Configure fine-grained graphics settings and link settings profiles to map zones.
+## Notes-deDE: Detaillierte Grafikeinstellungen konfigurieren und Einstellungsprofile mit Kartenzonen verknüpfen.
+## Notes-esES: Configura ajustes gráficos detallados y vincula perfiles de configuración a las zonas del mapa.
+## Notes-esMX: Configura ajustes gráficos detallados y vincula perfiles de configuración a las zonas del mapa.
+## Notes-frFR: Configurez des paramètres graphiques détaillés et liez des profils de paramètres aux zones de la carte.
+## Notes-itIT: Configura impostazioni grafiche dettagliate e collega i profili di impostazione alle zone della mappa.
+## Notes-ptBR: Configure ajustes gráficos detalhados e vincule perfis de configuração a zonas do mapa.
+## Notes-ruRU: Настраивайте детальные параметры графики и привязывайте профили настроек к зонам карты.
+## Notes-koKR: 세부적인 그래픽 설정을 구성하고 지도 지역에 설정 프로필을 연결합니다.
+## Notes-zhCN: 配置精细的图形设置，并将设置方案与地图区域关联。
+## Notes-zhTW: 配置精細的圖形設定，並將設定檔與地圖區域連結。
+## SavedVariables: Graphit_config
+
+main.lua
