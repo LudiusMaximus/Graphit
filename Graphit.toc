@@ -16,4 +16,13 @@
 ## Notes-zhTW: 配置精細的圖形設定，並將設定檔與地圖區域連結。
 ## SavedVariables: Graphit_config
 
+embeds.xml
+GraphicsSettings_extracted.lua
+GraphicsSettings_controlTypes.lua
+GraphicsSettings.lua
+MainFrame.lua
+
 main.lua
+
+# Developer/maintenance settings-extraction tool (/graphitdump, /graphitdumpall).
+ExtractSettings.lua

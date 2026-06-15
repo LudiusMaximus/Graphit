@@ -1,3 +1,5 @@
-local folderName, addon = ...
+local _, addon = ...
 
-print(folderName, "begins")
+-- Development convenience: open the window on load so a /reload lands on it.
+-- Remove before release.
+-- addon:ToggleMainFrame()
