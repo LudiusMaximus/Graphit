@@ -1,4 +1,4 @@
-## Interface: 120005
+## Interface: 120007
 ## Version: @project-version@
 ## Title: Graphit
 ## IconAtlas: UI-Frame-DastardlyDuos-icon-Speed
@@ -17,12 +17,11 @@
 ## SavedVariables: Graphit_config
 
 embeds.xml
-GraphicsSettings_extracted.lua
-GraphicsSettings_controlTypes.lua
-GraphicsSettings.lua
+Settings_Source.lua
+Settings_Dump.lua
+Settings_Custom.lua
 MainFrame.lua
+MinimapButton.lua
 
-main.lua
-
-# Developer/maintenance settings-extraction tool (/graphitdump, /graphitdumpall).
-ExtractSettings.lua
+# Developer/maintenance settings-dump tool (/graphitdump, /graphitdumpall).
+DumpSettings.lua

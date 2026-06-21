@@ -1,20 +1,20 @@
 local _, Graphit = ...
 
 -- =====================================================================
--- Graphit settings extraction tool.
+-- Graphit settings dump tool.
 --
 -- This is a developer/maintenance tool, but we ship it with the addon anyway:
--- the footprint is tiny (it lazily builds its window and registers a few slash
+-- the footprint is tiny (it lazily builds its window and registers two slash
 -- commands), and excluding one file from a release would mean keeping a
 -- .pkgmeta ignore and the TOC in sync, which is not worth it.
 --
--- It builds GraphicsSettings_extracted.lua. For each Blizzard "meta" graphics
--- setting (Layer 2, e.g. graphicsViewDistance) it discovers which raw engine
--- CVars (Layer 3, e.g. farclip) that meta drives, and the value each takes at
--- every level. The client computes this mapping in C; it is not in
--- wow-ui-source. So we sweep the meta CVar through its levels and diff the full
--- CVar table at each step, one meta at a time, so a changed raw CVar is
--- unambiguously a child of that meta.
+-- It builds Settings_Dump.lua. For each Blizzard "meta" graphics setting
+-- (Layer 2, e.g. graphicsViewDistance) it discovers which raw engine CVars
+-- (Layer 3, e.g. farclip) that meta drives, and the value each takes at every
+-- level. The client computes this mapping in C; it is not in wow-ui-source. So
+-- we sweep the meta CVar through its levels and diff the full CVar table at each
+-- step, one meta at a time, so a changed raw CVar is unambiguously a child of
+-- that meta.
 --
 -- The master setting graphicsQuality (Layer 1) does NOT cascade via SetCVar
 -- (Blizzard maps it in Lua), so for it we query the C function
@@ -23,18 +23,38 @@ local _, Graphit = ...
 -- Commands:
 --   /graphitdump <metaCVar> [maxLevel]   sweep one setting -> window
 --   /graphitdumpall                      sweep every setting -> a complete,
---                                        paste-ready GraphicsSettings_extracted.lua
---   /graphitcontroltypes                 from the loaded extracted data, emit a
---                                        GraphicsSettings_controlTypes.lua skeleton
---                                        (heuristic suggestions + TODOs)
+--                                        paste-ready Settings_Dump.lua
 --
 -- =====================================================================
 -- PATCH-DAY MAINTENANCE  (after a client patch touches graphics options)
 -- =====================================================================
--- Regenerating the data is a multi-step job: reconcile this tool with the
--- Blizzard Lua source, dump the values, then regenerate the control types.
 --
--- (1) SOURCE INVESTIGATION  (in the wow-ui-source repo)
+-- (1) SOURCE INVESTIGATION  (read wow-ui-source; transcribe into Settings_Source.lua)
+--
+--   COMPLETENESS SWEEP -- catch NEW and REMOVED settings, not only changes to ones we have.
+--   Read Graphics.lua's Register() top to bottom; every control it creates (Settings.Create
+--   Slider / CreateDropdown / CreateCheckbox, CreateSettingsCheckboxSliderInitializer, and
+--   the validated / proxy variants) must map to a Settings_Source entry (layer1 or layer2)
+--   OR to the deliberate-omissions list below. A control with no match is NEW -> transcribe
+--   it. Conversely, every cvar in Settings_Source must still be created somewhere in
+--   Register(); one that is gone means Blizzard REMOVED it -> drop ours. While walking,
+--   check each initializer for behaviour beyond a plain control and mirror (or consciously
+--   skip) it -- the easy-to-miss kind:
+--     - per-option tooltip / warning -> container:Add(value, label, TOOLTIP) or .warning
+--     - recommended default -> AddRecommended (auto for quality metas)
+--     - reversed slider -> getValueReversed / (max - value) proxy -> betterIsLower
+--     - custom label format -> options:SetLabelFormatter -> control.format
+--     - parent gate -> SetParentInitializer + IsModifiable -> enableWhen
+--     - runtime option list / range -> GetOptions / GetMinX -> optionsFunc / minFunc, maxFunc
+--     - the control's hover detail -> CreateOptionsInitTooltip (the per-option lines)
+--
+--   Deliberately NOT mirrored (do not re-flag as "missing"):
+--     - Raid Graphics (RaidSettingsEnabled, PROXY_RAID_GRAPHICS_QUALITY and its advanced
+--       table) -- Graphit's per-scenario profiles supersede a raid-only preset.
+--     - The "Antialiasing" parent dropdown -- it only gates its two children, so we drop it
+--       and expose Image-Based / Multisample (+ the alpha-test checkbox) directly as L1 rows.
+--     - The "New" feature badge (IsNewSettingInCurrentVersion) -- keyed to Blizzard's proxy
+--       variables, which we do not register.
 --
 --   File: Blizzard_Settings_Shared/Mainline/GraphicsOverrides.lua
 --     CreateAdvancedSettingsTable() lists every Layer-2 meta CVar
@@ -56,11 +76,77 @@ local _, Graphit = ...
 --       confirm the master still cascades through
 --       GetGraphicsCVarValueForQualityLevel(cvar, level, raid). If Blizzard
 --       changes that mechanism, update RunQualityMatrix.
+--     - Settings_Source.lua is transcribed by hand from this file the same patch (a
+--       separate file from this tool). It holds TWO tables:
+--         * Graphit.layer2 -- the Graphics Quality group: the master preset and its
+--           meta settings (names, tooltips, controls, option enums, gates). A
+--           setting's tooltip is the OPTION_TOOLTIP_* key passed to its control
+--           builder; copy it into `tooltip` (a meta without one shows no tooltip).
+--         * Graphit.layer1 -- the top-level section LAYOUT, mirroring how Graphics.lua's
+--           Register() lays the category out: section headers
+--           (CreateSettingsListSectionHeaderInitializer -> { header = "KEY" }; the
+--           nameless top section has none), a { quality = true } marker where the
+--           Graphics Quality group sits, and each standalone display / advanced /
+--           compat setting as a row in Blizzard's order. Per standalone setting:
+--             - cvar, name, tooltip; and a `control` (see the toolbox below).
+--             - commit, read from the setting's SetCommitFlags: GxRestart ->
+--               "gxRestart", UpdateWindow -> "windowUpdate", ClientRestart ->
+--               "clientRestart", else "live" (a bare Apply flag is panel batching only
+--               -> "live"). Drives how MainFrame applies it: live / windowUpdate at once,
+--               gxRestart staged on the Apply button (commit runs RestartGx),
+--               clientRestart written now but tinted violet until a real restart.
+--             - gate, from an AddShownPredicate or a C_CVar.GetCVar(...) check.
+--           Control toolbox -- match Blizzard's GetOptions / accessor pattern:
+--             * static:        control = { kind = "slider" | "dropdown" | "checkbox", ... }
+--                              (a quality scale -> slider, a categorical list -> dropdown).
+--             * runtime list:  control.optionsFunc = function() ... return { { value=,
+--                              label= }, ... } end -- a Blizzard GetOptions built at run
+--                              time (monitor, resolution, graphics API / card, MSAA).
+--             * validated list (AddValidatedCVarOption): optionsFunc returning
+--                              ValidatedOptions(cvar, defs) -- drops options the hardware
+--                              does not support and explains them in the tooltip (Low
+--                              Latency, VRS, RT Shadows, Texture Filtering). Reason
+--                              strings come from GFX_VALUE_ERRORS, transcribed from
+--                              Graphics.lua's ErrorMessages -- re-transcribe it if it
+--                              changes.
+--             * runtime range (GetMinX / GetMaxX): control = { kind = "slider",
+--                              minFunc =, maxFunc = } (Camera FOV).
+--             * value transform (the CVar value differs from the control value): get =
+--                              function(raw) ... end and/or set = function(v) ... return
+--                              cvarString end (MSAA's "msaa,coverage", Graphics API
+--                              case-fold, Triple Buffering's 2/3).
+--             * conditional disable (one setting's IsModifiable / a runtime state gates
+--                              another): enableWhen = function() return ... end, optionally
+--                              with disabledTooltip = "why" so the greyed control still
+--                              explains itself on hover (MSAA alpha test; Resolution while
+--                              the window is maximised).
+--             * checkbox + slider (CreateSettingsCheckboxSliderInitializer): control =
+--                              { kind = "checkboxSlider", check = "<enableCVar>", min =,
+--                              max =, step =, format = } -- an enable checkbox plus a value
+--                              slider that greys while unchecked (Max FPS caps, UI Scale).
+--             * CVar-less (a setting Blizzard drives through C_VideoOptions, not a CVar):
+--                              drop cvar and give read / write closures, plus an optionsFunc
+--                              of literal labels (Resolution). The Render Scale slider keeps
+--                              its RenderScale CVar but its label is a runtime format.
+--           placeholder = true is for a setting not yet wired up (none at present).
 --
---   (The hand-authored descriptor GraphicsSettings.lua -- full settings
---    list, localized-string KEYS, control types, option enums, gates -- is
---    also derived from Graphics.lua Register(). Review it the same patch,
---    but that is a separate file from this tool.)
+--           Per-option detail: a dropdown option is { value, label }, plus optional tooltip
+--           (the per-option explanation) and warning (shown only while that option is the
+--           current value). Transcribe BOTH whenever Blizzard's option carries them -- they
+--           are no longer dead data: MainFrame appends them to the setting's hover tooltip,
+--           mirroring Blizzard's control tooltip (CreateOptionsInitTooltip). The green
+--           "Recommended" marker needs no transcription; it is derived at runtime (the
+--           option equal to the CVar default) for every quality meta, as AddRecommended does.
+--
+--           Two gotchas worth remembering when transcribing:
+--             - Helpers called inside Graphics.lua may be `local function`s there
+--               (FormatScreenResolution, ExtractSizeFromFormattedSize), NOT globals -- so
+--               calling them from the addon is a runtime nil error. Copy a small
+--               reimplementation into Settings_Source (see the top of its layer1 block).
+--             - A CVar-less or proxy setting has no reliable CVar callback, so it will not
+--               sync inward on its own. Register the game event it fires instead, in
+--               MainFrame's inward-sync block: resolution -> DISPLAY_SIZE_CHANGED, UI scale
+--               -> UI_SCALE_CHANGED, graphics API / card -> GX_RESTARTED.
 --
 -- (2) DUMP THE VALUES
 --
@@ -68,18 +154,14 @@ local _, Graphit = ...
 --   (~30-40s total) and restores its original value. If a meta reports
 --   "no child CVars changed", the SetCVar cascade no longer works for it --
 --   investigate in source before trusting the output. Select All -> copy ->
---   replace the ENTIRE contents of GraphicsSettings_extracted.lua. `git diff`
---   it: the build stamp always changes; added / removed child CVars and
---   retuned values are the real patch changes.
+--   replace the ENTIRE contents of Settings_Dump.lua. `git diff` it: the
+--   build stamp always changes; added / removed child CVars and retuned values
+--   are the real patch changes.
 --
--- (3) REGENERATE THE CONTROL TYPES
---
---   /reload (so the new extracted data loads), then /graphitcontroltypes. It
---   reads the loaded data and emits a GraphicsSettings_controlTypes.lua
---   skeleton: a control type per child, pre-filled by heuristic, with TODO
---   comments where you must decide. Carry your previous decisions over,
---   resolve the TODOs, and reconcile GraphicsSettings.lua with any new parent
---   settings.
+--   There is no third step. Layer-3 children default to a slider in MainFrame, and
+--   any deviations live in Settings_Custom.lua, so a new child CVar appears on its
+--   own; revisit the customized overlay only to reorder or
+--   re-style it.
 -- =====================================================================
 
 
@@ -116,10 +198,10 @@ local META_SETTINGS = {
 -- other Blizzard graphics settings -- the display / advanced / compat blocks
 -- (vsync, textureFilteringMode, shadowrt, ResampleQuality, vrsValar,
 -- LowLatencyMode, antialiasing, gamma, render scale, FPS caps, ...) -- were
--- swept once and found to be direct single-CVar controls (no cascade), so
--- they live in the descriptor, not here; no need to re-sweep them each patch.
--- Single-child metas are likewise omitted by the dump (see BuildResult): a
--- lone child is a 1:1 alias with nothing to expand.
+-- swept once and found to be direct single-CVar controls (no cascade), so they
+-- live in Graphit.layer1 in Settings_Source.lua, not here; no need to re-sweep them
+-- each patch. Single-child metas are likewise omitted by the dump (see
+-- BuildResult): a lone child is a 1:1 alias with nothing to expand.
 
 -- Max level for a meta CVar by name, for the single-CVar /graphitdump
 -- command (unknown CVars fall back to 9). /graphitdumpall does not need
@@ -166,7 +248,7 @@ local outerFrame, editBox, scrollFrame
 local function BuildWindow()
   if outerFrame then return end
 
-  outerFrame = CreateFrame("Frame", "GraphitExtractSettingsFrame", UIParent, "TooltipBackdropTemplate")
+  outerFrame = CreateFrame("Frame", "GraphitDumpSettingsFrame", UIParent, "TooltipBackdropTemplate")
   outerFrame:SetSize(WINDOW_WIDTH + 60, WINDOW_HEIGHT + 70)
   outerFrame:SetPoint("CENTER")
   outerFrame:SetMovable(true)
@@ -345,7 +427,7 @@ local function BuildResult(meta, maxLevel, names, snapshots)
 
   if #children == 1 then
     -- A lone child means the meta is a 1:1 alias of that one raw CVar, so
-    -- there is nothing to expand; the descriptor exposes the meta directly.
+    -- there is nothing to expand; Settings_Source.lua exposes the meta directly.
     add(("-- %s: single child (%s); direct control, not expanded."):format(meta, children[1]))
     AppendOutput(table.concat(lines, "\n"))
     Report("66ff66", "%s -> 1 child (%s), omitted as a direct control.", meta, children[1])
@@ -461,7 +543,7 @@ local function FileHeader()
     "local _, Graphit = ...",
     "",
     "-- ===================================================================",
-    "-- AUTO-GENERATED by ExtractSettings.lua via /graphitdumpall.",
+    "-- AUTO-GENERATED by DumpSettings.lua via /graphitdumpall.",
     ("-- WoW %s build %s - %s."):format(version, build, date("%Y-%m-%d")),
     "-- Do not edit by hand; re-run the dump after each client patch.",
     "--",
@@ -470,7 +552,7 @@ local function FileHeader()
     "-- For graphicsQuality the children are the Layer-2 meta CVars and the",
     "-- values are their target levels (Layer 1->2).",
     "-- ===================================================================",
-    "Graphit.generatedGraphicsData = {",
+    "Graphit.layer3 = {",
   }, "\n")
 end
 
@@ -507,100 +589,6 @@ end
 
 
 -- ---------------------------------------------------------------------
--- Control-types skeleton (/graphitcontroltypes): suggest a control type
--- per Layer-3 child from the extracted values, for the human to finalize.
--- ---------------------------------------------------------------------
-
--- Distinct per-level sample values of a child entry, sorted ascending.
-local function DistinctValues(child)
-  local seen, list = {}, {}
-  for key, value in pairs(child) do
-    if type(key) == "number" and not seen[value] then
-      seen[value] = true
-      list[#list + 1] = value
-    end
-  end
-  table.sort(list, function(a, b) return (tonumber(a) or 0) < (tonumber(b) or 0) end)
-  return list
-end
-
--- Suggest a control type for a child from its observed values. Returns the
--- type, a short note for the comment, and a TODO string when the call is a
--- judgment the human must confirm (nil when confident).
-local function SuggestType(child)
-  local vals = DistinctValues(child)
-  local count = #vals
-  local lo, hi = tonumber(child.min), tonumber(child.max)
-  local range = (lo and hi) and (hi - lo) or 0
-
-  if count >= 4 and range > count then
-    return "slider", ("%d values, %s..%s"):format(count, child.min, child.max), nil
-  end
-
-  local listed = table.concat(vals, "/")
-  if count == 2 and vals[1] == "0" and vals[2] == "1" then
-    return "dropdown", nil, "0/1 -- checkbox if truly binary, else dropdown"
-  elseif count >= 4 then
-    return "dropdown", nil, ("dense set %s -- dropdown or stepped slider"):format(listed)
-  else
-    return "dropdown", nil, ("%s -- confirm dropdown (or slider if continuous)"):format(listed)
-  end
-end
-
--- The namespace header that opens GraphicsSettings_controlTypes.lua.
-local function ControlTypesHeader()
-  return table.concat({
-    "local _, Graphit = ...",
-    "",
-    "-- ===================================================================",
-    "-- AUTO-GENERATED skeleton by ExtractSettings.lua via /graphitcontroltypes.",
-    "-- Pre-filled with heuristic suggestions -- resolve every TODO by hand.",
-    "-- type = \"slider\" | \"dropdown\" | \"checkbox\". Ranges/values come from",
-    "-- GraphicsSettings_extracted.lua; to override, replace the string with a",
-    "-- table -- a slider's range/step or a dropdown's value list:",
-    "--   { type = \"slider\",   min = .., max = .., step = .. }",
-    "--   { type = \"dropdown\", values = { 0, 1, 2 } }",
-    "-- Re-generate after a dump changes child CVars, then re-apply decisions.",
-    "-- ===================================================================",
-    "Graphit.controlTypes = {",
-  }, "\n")
-end
-
-local function RunControlTypes()
-  local data = Graphit.generatedGraphicsData
-  if not data then
-    Report("ff4040", "GraphicsSettings_extracted.lua not loaded -- /graphitdumpall, paste, /reload first.")
-    return
-  end
-
-  local lines = { ControlTypesHeader() }
-  local function add(s) lines[#lines + 1] = s end
-
-  for _, entry in ipairs(META_SETTINGS) do
-    local children = data[entry.cvar]
-    if children then  -- nil for single-child / omitted metas
-      add("")
-      add("  -- " .. entry.cvar)
-      local names = {}
-      for cvar in pairs(children) do names[#names + 1] = cvar end
-      table.sort(names)
-      for _, cvar in ipairs(names) do
-        local typ, note, todo = SuggestType(children[cvar])
-        local comment = todo and ("-- TODO: " .. todo) or ("-- " .. note)
-        add(("  [%q] = %q,  %s"):format(cvar, typ, comment))
-      end
-    end
-  end
-  add("")
-  add("}")
-
-  ClearOutput()
-  AppendOutput(table.concat(lines, "\n"))
-  Report("66ff66", "control-types skeleton generated; resolve the TODOs, then paste.")
-end
-
-
--- ---------------------------------------------------------------------
 -- Slash commands.
 -- ---------------------------------------------------------------------
 SLASH_GRAPHITDUMP1 = "/graphitdump"
@@ -609,8 +597,7 @@ SlashCmdList["GRAPHITDUMP"] = function(msg)
   if not meta or meta == "" then
     Report("66ccff", "usage: /graphitdump <metaCVar> [maxLevel]")
     print("  e.g. /graphitdump graphicsViewDistance 9")
-    print("  /graphitdumpall          sweep every meta CVar -> extracted data")
-    print("  /graphitcontroltypes     control-types skeleton from extracted data")
+    print("  /graphitdumpall          sweep every meta CVar -> Settings_Dump.lua")
     return
   end
   ClearOutput()
@@ -625,9 +612,4 @@ end
 SLASH_GRAPHITDUMPALL1 = "/graphitdumpall"
 SlashCmdList["GRAPHITDUMPALL"] = function()
   RunAll()
-end
-
-SLASH_GRAPHITCONTROLTYPES1 = "/graphitcontroltypes"
-SlashCmdList["GRAPHITCONTROLTYPES"] = function()
-  RunControlTypes()
 end
