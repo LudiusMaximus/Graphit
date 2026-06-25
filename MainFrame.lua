@@ -97,7 +97,7 @@ local HEADER_ROW_HEIGHT = 30   -- section-header row (its text sits low, leaving
 -- Gap between the scroll box and the outer frame, per side (0 = flush). The
 -- scrollbar gets its own channel (SCROLLBAR_CHANNEL) added on the right, so LEFT
 -- and RIGHT can stay equal for a symmetric look.
-local SCROLL_GAP_TOP    = 70   -- clears the title bar + portrait
+local SCROLL_GAP_TOP    = 160   -- Make space for always visible settings.
 local SCROLL_GAP_BOTTOM = 32
 local SCROLL_GAP_LEFT   = 20
 local SCROLL_GAP_RIGHT  = 20
@@ -130,6 +130,19 @@ local INNER_CORNER_H = 180
 -- cancels out: the region's right anchor adds it back.
 local CHROME_W = SCROLL_GAP_LEFT + SCROLL_GAP_RIGHT - INNER_GAP_LEFT - INNER_GAP_RIGHT
 local CHROME_H = SCROLL_GAP_TOP + SCROLL_GAP_BOTTOM - INNER_GAP_TOP - INNER_GAP_BOTTOM
+
+-- The three display-target settings (Monitor / Display Mode / Resolution) live in the fixed
+-- top band above the scroll box, not the scrolling tab list -- stacked on the left, label-
+-- less (tooltip on the control), and soon driving the per-zone presets. Their data still
+-- comes from Settings_Source; only the layout is bespoke. Tunable placement constants:
+local TOP_ROW_HEIGHT     = 26
+local TOP_ROW_GAP        = 2    -- little space between the stacked dropdowns
+local TOP_SECTION_LEFT   = 65   -- x of all the three dropdowns (clears the fps-portrait and our apply button)
+local TOP_SECTION_TOP    = 30   -- y of the first dropdown (clears the title bar)
+local TOP_SECTION_CVAR   = { gxMonitor = true, gxMaximize = true }
+local function IsTopSectionSetting(item)  -- CVar-less Resolution is matched by name
+  return (item.cvar and TOP_SECTION_CVAR[item.cvar]) or item.name == "WINDOW_SIZE"
+end
 
 -- ===== Timing =====
 
@@ -182,10 +195,12 @@ local function SetCVar(cvar, value)
   RefreshSettingsPanel()
 end
 
--- The Layer-1 master setting. Its L3 entry's "children" are the Layer-2 meta
--- CVars (values are their target levels), so the same reconciliation machinery
--- applies a tier up. It is special only in that it has no engine cascade and its
--- children are the other top-level rows rather than an indented container.
+-- The Graphics Quality master (graphicsQuality). Its "children" are the Layer-2 meta CVars
+-- (their values being target levels), so the same parent/child reconciliation applies one
+-- tier up. It masters ONLY the Graphics Quality group -- the standalone Layer-1 settings
+-- (vsync, antialiasing, the display dropdowns, ...) are independent of it. Special in that
+-- it has no engine cascade, and its meta children render flat as top-level rows rather than
+-- in an indented container the way a meta's Layer-3 children do.
 local MASTER_CVAR = "graphicsQuality"
 
 local frame  -- built lazily on first toggle
@@ -427,7 +442,7 @@ end
 --
 -- betterIsLower reverses the option order so the menu runs worst-to-best and the
 -- Forward (>) stepper moves toward better, matching the reversed slider.
-local function CreateDropdown(row, binding, options, betterIsLower, enableWhen, disabledTooltip)
+local function CreateDropdown(row, binding, options, betterIsLower, enableWhen, disabledTooltip, controlTooltip)
   local dd  = CreateFrame("DropdownButton", nil, row, "WowStyle2DropdownTemplate")
   local dec = CreateFrame("Button", nil, row, "WowStyle2IconButtonTemplate")
   local inc = CreateFrame("Button", nil, row, "WowStyle2IconButtonTemplate")
@@ -505,17 +520,28 @@ local function CreateDropdown(row, binding, options, betterIsLower, enableWhen, 
   -- scripts alive (as Blizzard's own disabled controls do) to still explain why on hover.
   if enableWhen then
     row.hasEnableWhen = true
-    dd:SetMotionScriptsWhileDisabled(true)
-    if disabledTooltip then
-      dd:HookScript("OnEnter", function(self)
-        if Enabled() then return end
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    dd:SetMotionScriptsWhileDisabled(true)  -- keep OnEnter alive while the control is disabled
+  end
+  if controlTooltip or disabledTooltip then
+    -- A label-less top-section dropdown carries its whole tooltip on the control
+    -- (controlTooltip = name + body + option detail). A disabled control also explains why
+    -- (disabledTooltip), appended when disabled -- e.g. Resolution while the window is maximised.
+    dd:HookScript("OnEnter", function(self)
+      local disabled = enableWhen and not enableWhen()
+      if not controlTooltip and not (disabled and disabledTooltip) then return end
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      if controlTooltip then
+        controlTooltip(GameTooltip)
+      else
         GameTooltip_SetTitle(GameTooltip, row.label:GetText())
+      end
+      if disabled and disabledTooltip then
+        if controlTooltip then GameTooltip_AddBlankLineToTooltip(GameTooltip) end
         GameTooltip_AddNormalLine(GameTooltip, disabledTooltip, true)
-        GameTooltip:Show()
-      end)
-      dd:HookScript("OnLeave", GameTooltip_Hide)
-    end
+      end
+      GameTooltip:Show()
+    end)
+    dd:HookScript("OnLeave", GameTooltip_Hide)
   end
 
   -- Re-render the shown selection from the binding: re-runs the generator so the
@@ -1239,6 +1265,9 @@ local function RefreshAllRows(content)
   for _, r in ipairs(content.rows) do
     if not r.isMaster then ResyncRow(r) end
   end
+  for _, r in ipairs(content.topRows or {}) do  -- the fixed top-section dropdowns
+    if r.Refresh then r.Refresh() end
+  end
   if content.masterRow then ReconcileParent(content.masterRow) end
   if RefreshApplyButton then RefreshApplyButton() end
 end
@@ -1749,7 +1778,9 @@ local function BuildRows(content)
   end
 
   for _, item in ipairs(Graphit.layer1) do
-    if item.header then
+    if IsTopSectionSetting(item) then
+      -- rendered in the fixed top section (BuildTopSection), not the scrolling list
+    elseif item.header then
       if not (item.gate and not item.gate()) then
         content.rows[#content.rows + 1] = CreateHeaderRow(content, item.header)
       end
@@ -1976,6 +2007,87 @@ local function BuildFrame()
   scrollBox:SetPanExtent(ROW_HEIGHT)
   scrollBox:FullUpdate()
 
+  -- ===== Tabs =====
+  -- Mirror the Settings panel's Game/AddOns tabs: MinimalTabTemplate buttons driven by a
+  -- RadioButtonGroup, which gives the selected texture and the white (selected) vs gold
+  -- (unselected) text for free; we add the tab click sound. Two placeholder tabs for now --
+  -- the content switch wires in once the settings are split across tabs. Placement is a
+  -- first pass (clear of the FPS portrait, bottoms on the list's top edge); tune freely.
+  local function MakeTab(text)
+    local tab = CreateFrame("Button", nil, f, "MinimalTabTemplate")
+    tab.Text:SetText(text)
+    return tab  -- width comes from the BOTTOMLEFT/BOTTOMRIGHT anchors below
+  end
+  local tab1 = MakeTab("Performance vs. Quality")
+  local tab2 = MakeTab("General and Static")
+  local tab_y = 6
+  local tab_gap = 5
+  tab1:SetPoint("BOTTOMLEFT",  content, "TOPLEFT",  0,                 tab_y)
+  tab1:SetPoint("BOTTOMRIGHT", content, "TOP",      -tab_gap/2,        tab_y)
+  tab2:SetPoint("BOTTOMLEFT",  content, "TOP",       tab_gap/2,        tab_y)
+  tab2:SetPoint("BOTTOMRIGHT", content, "TOPRIGHT", SCROLLBAR_CHANNEL, tab_y)
+
+  -- Select index 1 BEFORE registering the callback, so the initial selection does not fire
+  -- the click sound (the Settings panel orders it the same way).
+  local tabsGroup = CreateRadioButtonGroup()
+  tabsGroup:AddButtons({ tab1, tab2 })
+  tabsGroup:SelectAtIndex(1)
+  tabsGroup:RegisterCallback(ButtonGroupBaseMixin.Event.Selected, function()
+    PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB)
+  end, f)
+
+  -- ===== Top section: always-visible display settings (Monitor / Display Mode / Resolution) =====
+  -- Hardcoded layout (see IsTopSectionSetting): stacked, label-less dropdowns on the left,
+  -- the tooltip moved onto the control. Data still comes from Settings_Source -- we pull the
+  -- three out of layer1 in order and render them here; the list build above skips them.
+  content.topRows = {}
+  do
+    local y = -TOP_SECTION_TOP
+    for _, base in ipairs(Graphit.layer1) do
+      if IsTopSectionSetting(base) then
+        local row = CreateFrame("Frame", nil, f)
+        row:SetHeight(TOP_ROW_HEIGHT)  -- width comes from the TOPLEFT/TOPRIGHT anchors
+        row:SetPoint("TOPLEFT", f, "TOPLEFT", TOP_SECTION_LEFT, y)
+        row:SetPoint("TOPRIGHT", f, "TOP", 30, y)
+        row.label = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")  -- zero-width: the control fills
+        row.label:SetPoint("LEFT", row, "LEFT", 0, 0)
+        row.labelColor = NORMAL_FONT_COLOR
+
+        -- A windowUpdate binding: CVar-less (Resolution) reads/writes through closures; the
+        -- others write their CVar. Either way refresh the window (a monitor / display change
+        -- shifts what the other two read).
+        local binding
+        if base.read then
+          binding = { get = base.read,
+                      set = function(v) base.write(v); UpdateWindow(); RefreshAllRows(content) end }
+        else
+          binding = { get = function() return LogicalValue(base.cvar) end,
+                      set = function(v) SetCVar(base.cvar, tostring(v)); UpdateWindow(); RefreshAllRows(content) end }
+        end
+
+        local opts = {}
+        local raw = (base.control.optionsFunc and base.control.optionsFunc()) or base.control.options or {}
+        for _, o in ipairs(raw) do opts[#opts + 1] = { value = o.value, text = L(o.label) } end
+
+        -- No label, so the control carries the tooltip: name + body + option detail.
+        -- CreateDropdown appends the disabledTooltip ("locked") when Resolution is maximised.
+        local detail = OptionDetailFunc(base)
+        local function controlTooltip(tip)
+          GameTooltip_SetTitle(tip, L(base.name))
+          local body = base.tooltip and _G[base.tooltip]
+          if body then GameTooltip_AddNormalLine(tip, body, true) end
+          if detail then detail(tip) end
+        end
+
+        CreateDropdown(row, binding, opts, base.control.betterIsLower, base.enableWhen,
+                       base.disabledTooltip and L(base.disabledTooltip), controlTooltip)
+        row.Refresh()  -- initial render (list rows get this via OnShow's RefreshAllRows)
+        content.topRows[#content.topRows + 1] = row
+        y = y - (TOP_ROW_HEIGHT + TOP_ROW_GAP)
+      end
+    end
+  end
+
   -- ===== Apply button =====
   -- Staged changes are parked rather than applied: a deferred child (worldBaseMip), to
   -- spare the multi-second freeze on a parent drag, and "gxRestart" Layer-1 settings
@@ -1991,7 +2103,7 @@ local function BuildFrame()
   if f.NineSlice then aboveLevel = math.max(aboveLevel, f.NineSlice:GetFrameLevel()) end
   applyBtn:SetFrameLevel(aboveLevel + 10)
   -- Tunable: nudge to taste; sits on the bottom-right edge of the FPS portrait.
-  applyBtn:SetPoint("CENTER", f.PortraitContainer.portrait, "BOTTOMRIGHT", 0, 12)
+  applyBtn:SetPoint("BOTTOMRIGHT", f.PortraitContainer.portrait, "BOTTOMRIGHT", 2, -15)
 
   applyBtn:SetNormalAtlas(REVERT_ATLAS)
   applyBtn:SetPushedAtlas(REVERT_ATLAS)
@@ -2239,7 +2351,3 @@ end
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("PLAYER_ENTERING_WORLD")
 loader:SetScript("OnEvent", ResolveSavedPending)
-
-
--- Dev convenience: uncomment to auto-open the window on load, so a /reload lands on it.
--- Toggle()

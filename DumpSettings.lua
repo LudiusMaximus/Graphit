@@ -613,3 +613,6 @@ SLASH_GRAPHITDUMPALL1 = "/graphitdumpall"
 SlashCmdList["GRAPHITDUMPALL"] = function()
   RunAll()
 end
+
+-- Dev convenience: uncomment to auto-open the window on load (this file loads last).
+-- Graphit.ToggleMainFrame()
