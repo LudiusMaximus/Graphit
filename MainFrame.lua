@@ -2022,10 +2022,10 @@ local function BuildFrame()
   local tab2 = MakeTab("General and Static")
   local tab_y = 6
   local tab_gap = 5
-  tab1:SetPoint("BOTTOMLEFT",  content, "TOPLEFT",  0,                 tab_y)
-  tab1:SetPoint("BOTTOMRIGHT", content, "TOP",      -tab_gap/2,        tab_y)
-  tab2:SetPoint("BOTTOMLEFT",  content, "TOP",       tab_gap/2,        tab_y)
-  tab2:SetPoint("BOTTOMRIGHT", content, "TOPRIGHT", SCROLLBAR_CHANNEL, tab_y)
+  tab1:SetPoint("BOTTOMLEFT",  scrollBox, "TOPLEFT",  0,                 tab_y)
+  tab1:SetPoint("BOTTOMRIGHT", scrollBox, "TOP",      -tab_gap/2,        tab_y)
+  tab2:SetPoint("BOTTOMLEFT",  scrollBox, "TOP",       tab_gap/2,        tab_y)
+  tab2:SetPoint("BOTTOMRIGHT", scrollBox, "TOPRIGHT", SCROLLBAR_CHANNEL, tab_y)
 
   -- Select index 1 BEFORE registering the callback, so the initial selection does not fire
   -- the click sound (the Settings panel orders it the same way).
