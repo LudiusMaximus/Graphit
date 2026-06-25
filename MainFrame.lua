@@ -652,7 +652,14 @@ local RefreshApplyButton
 
 local function IsDeferred(cvar)
   local o = OverrideFor(cvar)
-  return o and o.deferApply
+  return o and (o.deferApply or o.confirmApply)  -- confirmApply implies staging
+end
+
+-- A confirmApply setting (RenderScale) is staged, applied via the Apply button, and then
+-- guarded by a countdown popup that reverts unless confirmed (see ApplyPending).
+local function IsConfirmApply(cvar)
+  local o = OverrideFor(cvar)
+  return o and o.confirmApply
 end
 
 local function LogicalValue(cvar)
@@ -712,6 +719,17 @@ local function CommitFlag(cvar)
     end
   end
   return commitOf[cvar]
+end
+
+-- Commit a set of { [cvar] = value }: write each, and restart the graphics device once if
+-- any is a gxRestart setting. Shared by the Apply button and the confirm-revert below.
+local function CommitValues(values)
+  local needGx = false
+  for cvar, target in pairs(values) do
+    SetCVar(cvar, target)
+    if CommitFlag(cvar) == "gxRestart" then needGx = true end
+  end
+  if needGx then RestartGx() end
 end
 
 -- ===== Parent level reconciliation =====
@@ -1224,6 +1242,41 @@ local function RefreshAllRows(content)
   if content.masterRow then ReconcileParent(content.masterRow) end
   if RefreshApplyButton then RefreshApplyButton() end
 end
+
+-- ===== Confirm-apply countdown =====
+--
+-- A confirmApply setting (RenderScale) can crater FPS so hard the UI is barely usable. After
+-- the Apply button commits one, ApplyPending snapshots the pre-apply values, persists them,
+-- and pops a countdown: Keep drops the snapshot; Revert / Escape / the timeout restore it.
+-- The snapshot lives in Graphit_config, so a force-close before deciding reverts on the next
+-- clean load (ResolveSavedPending). A hard crash never flushes SavedVariables, so only a
+-- clean exit (logout, /reload, Alt-F4) is recoverable.
+local CONFIRM_APPLY_TIMEOUT = 15  -- seconds before an unconfirmed apply auto-reverts
+
+local function RevertConfirmSnapshot()
+  local snap = Graphit_config and Graphit_config.confirmSnapshot
+  if not snap then return end
+  Graphit_config.confirmSnapshot = nil
+  CommitValues(snap)
+  if frame and frame.content then RefreshAllRows(frame.content) end
+  RefreshSettingsPanel()
+end
+
+StaticPopupDialogs["GRAPHIT_CONFIRM_APPLY"] = {
+  text = "Keep these display settings?",
+  subText = " ",  -- replaced each frame by OnUpdate with the live countdown
+  button1 = "Keep",
+  button2 = "Revert",
+  -- Keep just drops the snapshot; Revert / Escape / the timeout all reach OnCancel and
+  -- restore it (Graphit_config.confirmSnapshot is the single source of truth).
+  OnAccept = function() if Graphit_config then Graphit_config.confirmSnapshot = nil end end,
+  OnCancel = function() RevertConfirmSnapshot() end,
+  OnUpdate = function(dialog) dialog.SubText:SetFormattedText("Reverting in %d seconds.", math.ceil(dialog.timeleft or 0)) end,
+  timeout = CONFIRM_APPLY_TIMEOUT,
+  whileDead = true,
+  hideOnEscape = true,
+  showAlert = true,
+}
 
 -- Drive a meta to `level`. Normally one SetCVar lets the engine cascade to the
 -- raw children. But when a child is deferred, that cascade would change it too
@@ -1981,14 +2034,23 @@ local function BuildFrame()
 
   local function ApplyPending()
     if not next(pending) then return end
-    local needGx = false
-    for cvar, target in pairs(pending) do
-      SetCVar(cvar, target)  -- the freeze (if any) happens here, deliberately
-      if CommitFlag(cvar) == "gxRestart" then needGx = true end
+    -- Snapshot the pre-apply values (and note whether the batch needs a confirm) before the
+    -- SetCVars overwrite them; the freeze (if any) happens inside CommitValues, deliberately.
+    local snapshot, needsConfirm = {}, false
+    for cvar in pairs(pending) do
+      snapshot[cvar] = GetCVar(cvar)
+      if IsConfirmApply(cvar) then needsConfirm = true end
     end
+    CommitValues(pending)
     wipe(pending)
-    if needGx then RestartGx() end  -- a GX-restart setting only takes hold on a device reset
     RefreshApplyButton()
+    if needsConfirm then
+      -- Persist the whole batch's old values, then guard the apply with a countdown that
+      -- reverts to them unless kept (and on the next clean load if the client is force-closed).
+      Graphit_config = Graphit_config or {}
+      Graphit_config.confirmSnapshot = snapshot
+      StaticPopup_Show("GRAPHIT_CONFIRM_APPLY")
+    end
   end
   applyBtn:SetScript("OnClick", ApplyPending)
 
@@ -2133,9 +2195,16 @@ Graphit.ToggleMainFrame = Toggle
 -- on the two are one table -- the next logout simply writes whatever is left.
 -- SavedVariables load only by ADDON_LOADED, so this must run on an event, not at
 -- file scope; PLAYER_ENTERING_WORLD also lets the CVar writes land under the screen.
-local function ResolveSavedPending()
+local function ResolveSavedPending(_, _, isInitialLogin, isReloadingUi)
   Graphit_config = Graphit_config or {}
   EnsureRestartBaseline()  -- re-captures only on a real client restart (start time jumped)
+
+  -- An apply guarded by the confirm countdown that was force-closed (or /reload'd) before
+  -- the user decided leaves a snapshot behind; on a fresh load -- but NOT a mid-session zone
+  -- change, where the popup is still live -- revert to it.
+  if (isInitialLogin or isReloadingUi) and Graphit_config.confirmSnapshot then
+    RevertConfirmSnapshot()
+  end
 
   -- First run: fold the disk-saved parks into the live table, then make the live
   -- table the persisted store (the same reference from here on).

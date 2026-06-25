@@ -54,6 +54,10 @@ local _, Graphit = ...
 --                                  once, freeze accepted). For a standalone Layer-1
 --                                  setting (uiscale) the setting's own control stages too,
 --                                  used when a live write is disruptive mid-edit.
+--                 confirmApply = true  a stronger deferApply (implies it): after the Apply
+--                                  button commits this setting, a countdown popup appears
+--                                  and reverts it unless kept -- for a setting that can make
+--                                  the client unusable (RenderScale at 200% drops FPS to ~1).
 --                 tooltip = "..."  the hover tooltip shown over the row's name. For
 --                                  Layer 1 / Layer 2 it overrides Blizzard's; for a
 --                                  Layer-3 child it is the only source (none shows
@@ -168,9 +172,15 @@ Graphit.descriptor = {
     -- Writing uiscale live rescales the whole UI, sliding the Graphit frame out from under
     -- the slider mid-drag. Stage it for the Apply button instead (the compound stages its
     -- useUiScale enable along with it), so the rescale happens once, on apply.
-    ["RenderScale"] = { deferApply = true },
+    ["uiscale"] = { deferApply = true },
 
-    ["worldBaseMip"] = { deferApply = true },
+
+    -- Render Scale (top section)
+
+    -- A high render scale can crater FPS (200% -> ~1 FPS), so applying it live is risky.
+    -- confirmApply stages it AND, after the Apply button, pops a countdown popup that
+    -- reverts unless kept (see MainFrame's ApplyPending / RevertConfirmSnapshot).
+    ["RenderScale"] = { confirmApply = true },
   },
 
   custom = {
