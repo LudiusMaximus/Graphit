@@ -111,8 +111,8 @@ local _, Graphit = ...
 --                              it if it changes. NOTE: VRS (vrsValar) is validated too, but its
 --                              availability flips live (Multisample AA overrules it), so it is
 --                              deliberately NOT a validated slider -- it is a grey-in-place
---                              dropdown (PlainOptions + enableWhen + get + optionDisabled /
---                              optionsHint). Keep it that way; see its comment in Settings_Source.
+--                              dropdown: PlainOptions in Settings_Source, the grey-in-place
+--                              behaviour in Settings_Logic. Keep it that way.
 --             * runtime range (GetMinX / GetMaxX): control = { kind = "slider",
 --                              minFunc =, maxFunc = } (Camera FOV).
 --             * value transform (the CVar value differs from the control value): get =
@@ -133,6 +133,13 @@ local _, Graphit = ...
 --                              of literal labels (Resolution). The Render Scale slider keeps
 --                              its RenderScale CVar but its label is a runtime format.
 --           placeholder = true is for a setting not yet wired up (none at present).
+--
+--           Where it lands: control structure, and faithful transcriptions of Blizzard's own
+--           per-setting code (a value encoding via get / set, a parent IsModifiable gate via
+--           enableWhen), go in Settings_Source with the mirror. Graphit's OWN behaviour -- a
+--           cross-setting dependency, an effective-value readout, a hand-written tooltip (VRS,
+--           Ray Traced Shadows, Resolution's maximised lock) -- goes in Settings_Logic, keyed by
+--           CVar (or name for a CVar-less setting) and merged onto the mirror at render.
 --
 --           Per-option detail: a dropdown option is { value, label }, plus optional tooltip
 --           (the per-option explanation) and warning (shown only while that option is the

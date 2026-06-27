@@ -13,9 +13,10 @@ local _, Graphit = ...
 -- hand-tweak it. Per the project rule, only keys are stored; they resolve to the player's
 -- locale at display time via _G[key]. The patch-day routine lives in DumpSettings.lua.
 --
--- Our deviations from this mirror -- reordering, control swaps, and all Layer-3 child
--- overrides -- live in Settings_Custom.lua, so they stay recognisable as ours. A meta's
--- Layer-3 child CVars and their per-level values come from Settings_Dump.lua.
+-- Our deviations from this mirror live alongside it, so they stay recognisable as ours:
+-- declarative ones (reordering, control swaps, Layer-3 child overrides) in Settings_Custom.lua,
+-- behavioural ones (enableWhen, value transforms, smart tooltips) in Settings_Logic.lua. A
+-- meta's Layer-3 child CVars and their per-level values come from Settings_Dump.lua.
 -- =====================================================================
 
 Graphit.layer2 = {
@@ -226,6 +227,14 @@ local GFX_VALUE_ERRORS = {
   "VRN_NVIDIA_UNSUPPORTED", "VRN_QUALCOMM_UNSUPPORTED", "VRN_GPU_DRIVER", "VRN_COMPAT_MODE",
 }
 
+-- The "unavailable" reason for a graphics CVar value, or nil when it is supported.
+-- IsGraphicsCVarValueSupported returns 0 (supported) or an index into GFX_VALUE_ERRORS. Exposed
+-- on Graphit so Settings_Logic's per-option checks (VRS) resolve the reason without this local.
+function Graphit.GraphicsCVarError(cvar, value)
+  local err = IsGraphicsCVarValueSupported and IsGraphicsCVarValueSupported(cvar, value) or 0
+  return err ~= 0 and (_G[GFX_VALUE_ERRORS[err]] or "") or nil
+end
+
 -- Build an option list checked against IsGraphicsCVarValueSupported (Blizzard's
 -- AddValidatedCVarOption). An unsupported value is tagged `unavailable` with its reason;
 -- the renderer drops it from the control and lists "<option>: <reason>" in the tooltip.
@@ -236,8 +245,7 @@ local function ValidatedOptions(cvar, defs)
   for _, d in ipairs(defs) do
     local o = { value = d.value, label = _G[d.label] or d.label }
     if d.tooltip then o.tooltip = _G[d.tooltip] or d.tooltip end
-    local err = IsGraphicsCVarValueSupported and IsGraphicsCVarValueSupported(cvar, d.value) or 0
-    if err ~= 0 then o.unavailable = _G[GFX_VALUE_ERRORS[err]] or "" end
+    o.unavailable = Graphit.GraphicsCVarError(cvar, d.value)  -- nil when supported
     opts[#opts + 1] = o
   end
   return opts
@@ -288,17 +296,6 @@ local function CurrentWindowSize()
   return size
 end
 
--- The game window is "maximised" (windowed but filling the screen) when it is not
--- fullscreen yet its width already equals the monitor's full width. The OS then fixes the
--- size, so picking a resolution has no effect. Mirrors ScreenManager's check; it only
--- misfires with a left/right Windows taskbar, which almost nobody uses.
-local function IsWindowMaximized()
-  if GetCVar("gxMaximize") ~= "0" then return false end  -- fullscreen: not maximised-windowed
-  if not (C_VideoOptions and C_VideoOptions.GetDefaultGameWindowSize and GetPhysicalScreenSize) then return false end
-  local def = C_VideoOptions.GetDefaultGameWindowSize(tonumber(GetCVar("gxMonitor")) or 0)
-  return def ~= nil and GetPhysicalScreenSize() == def.x
-end
-
 Graphit.layer1 = {
 
   -- Top section (nameless): the display settings, in Blizzard's order.
@@ -323,12 +320,8 @@ Graphit.layer1 = {
     end } },
   { name = "WINDOW_SIZE", tooltip = "OPTION_TOOLTIP_WINDOW_SIZE", commit = "windowUpdate",
     -- CVar-less: Blizzard drives resolution through C_VideoOptions (the resolution CVars
-    -- do not cover every size), so we read / write / list it the same way.
-    -- A maximised window has its size fixed by the OS, so disable the control and say why.
-    enableWhen = function() return not IsWindowMaximized() end,
-    -- Typically, Settings_Source.lua is only supposed to include stuff extracted 1:1 from the Blizzard code.
-    -- But here we make an exception.
-    disabledTooltip = "Resolution is locked to your screen size while the game window is maximized. Un-maximising the window or switching to Fullscreen will enable resolution changes again.",
+    -- do not cover every size), so we read / write / list it the same way. Graphit's behaviour
+    -- (disable while the window is maximised, and say why) lives in Settings_Logic["WINDOW_SIZE"].
     read = function()
       local size = CurrentWindowSize()
       return size and FormatScreenResolution(size.x, size.y) or ""
@@ -480,6 +473,8 @@ Graphit.layer1 = {
       })
     end } },
 
+  -- Ray Traced Shadows. The pure mirror; Graphit's behaviour (grey while shadows are off, the
+  -- effective-Disabled readout, the Shadow Quality notes) lives in Settings_Logic["shadowrt"].
   { cvar = "shadowrt", name = "RT_SHADOW_QUALITY", tooltip = "OPTION_TOOLTIP_RT_SHADOW_QUALITY", commit = "live",
     control = { kind = "slider", optionsFunc = function()
       return ValidatedOptions("shadowrt", {
@@ -498,16 +493,10 @@ Graphit.layer1 = {
       { value = 3, label = "RESAMPLE_QUALITY_FSR",      tooltip = "VIDEO_OPTIONS_RESAMPLE_QUALITY_FSR"      },
     } } },
 
-  -- VRS is a real dropdown, not the usual validated slider, so it can grey in place rather than
-  -- collapse to a readout. Multisample AA overrules VRS: while MSAA is on the engine reports
-  -- Standard/Aggressive unsupported, and IsGraphicsCVarValueSupported flips the instant MSAA
-  -- changes. We keep all three options via PlainOptions (so the widget never changes shape) and
-  -- grey the whole control through enableWhen -- re-checked on every refresh, which the MSAA edit
-  -- already triggers -- so it greys/ungreys live; the same enableWhen also greys it permanently
-  -- on hardware with no VRS support. While greyed (only Disabled valid), get reports the
-  -- effective state, so the dropdown reads "Disabled" rather than the suspended choice -- the
-  -- CVar is left intact, so the choice returns when VRS is available again. The reasons live in
-  -- the label tooltip (optionDisabled / optionsHint), not a control hover.
+  -- VRS rendered as a real dropdown (PlainOptions keeps all options, so it never collapses to a
+  -- readout) so Graphit can grey it in place. That behaviour -- the grey-out, the effective
+  -- "Disabled" readout, the per-option reasons and the MSAA note -- lives in
+  -- Settings_Logic["vrsValar"]. This entry is otherwise the mirror.
   { cvar = "vrsValar", name = "VRS_MODE", tooltip = "OPTION_TOOLTIP_VRS_MODE", commit = "live",
     control = { kind = "dropdown", optionsFunc = function()
       return PlainOptions({
@@ -515,28 +504,7 @@ Graphit.layer1 = {
         { value = 1, label = "VIDEO_OPTIONS_STANDARD",   tooltip = "OPTION_TOOLTIP_VRS_STANDARD"   },
         { value = 2, label = "VIDEO_OPTIONS_AGGRESSIVE", tooltip = "OPTION_TOOLTIP_VRS_AGGRESSIVE" },
       })
-    end },
-    get = function(raw)
-      if IsGraphicsCVarValueSupported and IsGraphicsCVarValueSupported("vrsValar", 1) ~= 0 then return 0 end
-      return tonumber(raw) or 0
-    end,
-    enableWhen = function()
-      return not IsGraphicsCVarValueSupported or IsGraphicsCVarValueSupported("vrsValar", 1) == 0
-    end,
-    -- Per-option availability for the label tooltip, re-checked on hover so it tracks MSAA
-    -- live: an unsupported level is greyed with the engine's reason shown in red directly below
-    -- it (rendered Blizzard-style). Returns the reason, or nil when the level is supported.
-    optionDisabled = function(value)
-      local code = IsGraphicsCVarValueSupported and IsGraphicsCVarValueSupported("vrsValar", value) or 0
-      return code ~= 0 and _G[GFX_VALUE_ERRORS[code]] or nil
-    end,
-    -- A trailing hint, only while Multisample AA is on (the engine's reason is a generic
-    -- VRN_GRAPHICS that never names MSAA). Typically Settings_Source only holds strings
-    -- extracted 1:1 from Blizzard; this Graphit message is a deliberate exception.
-    optionsHint = function()
-      local msaa = tonumber((strsplit(",", (C_CVar and C_CVar.GetCVar("MSAAQuality")) or "0"))) or 0
-      return msaa ~= 0 and "Notice that VRS gets automatically disabled by the game while Multisample Anti-Aliasing is enabled." or nil
-    end },
+    end } },
 
   -- gxapi stores an API name; it is matched case-insensitively against the available
   -- APIs. GET normalises to one of them (the last if the value is not among them); the

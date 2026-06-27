@@ -20,6 +20,7 @@ embeds.xml
 Settings_Source.lua
 Settings_Dump.lua
 Settings_Custom.lua
+Settings_Logic.lua
 MainFrame.lua
 MinimapButton.lua
 

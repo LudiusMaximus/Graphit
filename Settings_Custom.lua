@@ -1,9 +1,10 @@
 local _, Graphit = ...
 
 -- =====================================================================
--- Our customizations -- the only graphics file we hand-edit.
+-- Our DECLARATIVE customizations. (Per-setting behaviour -- enableWhen, value transforms,
+-- smart tooltips -- is its own hand-edited file, Settings_Logic.lua.)
 --
--- The other two graphics files are mechanical and never edited:
+-- Settings_Source.lua and Settings_Dump.lua are mechanical and never hand-edited:
 -- Settings_Source.lua mirrors Blizzard's Graphics.lua (the settings, their
 -- names, controls, and order), and Settings_Dump.lua is the runtime dump
 -- (each meta's raw child CVars and their value at every quality level). The UI
@@ -12,7 +13,7 @@ local _, Graphit = ...
 -- default (a Blizzard dropdown keeps its labels on the slider readout). A child a
 -- future patch adds therefore shows up with no change here.
 --
--- This file is the overlay of our decisions on top of that. Every field is
+-- This file is the overlay of our declarative decisions on top of that. Every field is
 -- optional; an empty descriptor changes nothing. There are five independent parts, so
 -- assigning a section to a tab, reordering it, overriding it, and adding a custom
 -- setting never interfere:
@@ -106,20 +107,20 @@ Graphit.descriptor = {
     -- graphicsViewDistance
 
     -- beyond 1024 has no effect
-    ["TerrainLodDiv"] = { control = { kind="slider", min=0, max=1024, step=32 } },
+    ["TerrainLodDiv"] = { control = { min=0, max=1024, step=32 } },
 
     -- original 5-10
-    ["entityLodDist"] = { control = { kind="slider", min=0, max=50, step=1 } },
+    ["entityLodDist"] = { control = { min=0, max=50, step=1 } },
 
     -- original 10-50
-    ["entityShadowFadeScale"] = { control = { kind="slider", min=0, max=200, step=5 } },
+    ["entityShadowFadeScale"] = { control = { min=0, max=200, step=5 } },
 
 
     -- Draw less detailed terrain in the distance.
     -- Small values also hide horizonStart renderings.
     -- original 1500-10000
     -- below 1000 has no effect any more.
-    ["farclip"] = { control = { kind="slider", min=1000, max=20000, step=10 } },
+    ["farclip"] = { control = { min=1000, max=20000, step=10 } },
 
 
     -- Does nothing at all.
@@ -130,34 +131,34 @@ Graphit.descriptor = {
     -- Detailed rendering distance (replaces non-detailed farclip rendering)
     -- original 400-4000
     -- beyond 6000 has no effect.
-    ["horizonStart"] = { control = { kind="slider", min=0, max=6000, step=10 } },
+    ["horizonStart"] = { control = { min=0, max=6000, step=10 } },
   
 
     -- more polygons/textures for terrain in distance
     -- original 200-650
-    ["terrainLodDist"] = { control = { kind="slider", min=0, max=3000, step=5 } },
+    ["terrainLodDist"] = { control = { min=0, max=3000, step=5 } },
 
     -- more polygons/textures/lighting effects for objects, particularly buildings in distance.
     -- original 250-400
-    ["wmoLodDist"] = { control = { kind="slider", min=0, max=2000, step=5 } },
+    ["wmoLodDist"] = { control = { min=0, max=2000, step=5 } },
     
 
     -- graphicsEnvironmentDetail
 
 
     -- original 50-150
-    ["doodadLodScale"] = { control = { kind="slider", min=0, max=500, step=1 } },
+    ["doodadLodScale"] = { control = { min=0, max=500, step=1 } },
 
     -- original 50-150
     -- When you go below 50, the engine snaps back to 50 when you change other cvars. 
-    ["lodObjectFadeScale"] = { control = { kind="slider", min=50, max=500, step=1 } },
+    ["lodObjectFadeScale"] = { control = { min=50, max=500, step=1 } },
 
 
     -- original 35-14
-    ["lodObjectCullSize"] = { control = { kind="slider", min=1, max=50, step=1, betterIsLower=true } },
+    ["lodObjectCullSize"] = { control = { min=1, max=50, step=1, betterIsLower=true } },
 
     -- original 30-0
-    ["lodObjectMinSize"]  = { control = { kind="slider", min=0, max=50, step=1, betterIsLower=true } },
+    ["lodObjectMinSize"]  = { control = { min=0, max=50, step=1, betterIsLower=true } },
 
 
     -- graphicsTextureResolution
@@ -168,6 +169,8 @@ Graphit.descriptor = {
     ["worldBaseMip"] = { deferApply = true },
 
     
+    ["shadowTextureSize"] = { control = { step=1024 } },
+
 
     -- Camera FOV (top section)
 
