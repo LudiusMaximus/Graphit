@@ -13,8 +13,16 @@ local _, Graphit = ...
 -- future patch adds therefore shows up with no change here.
 --
 -- This file is the overlay of our decisions on top of that. Every field is
--- optional; an empty descriptor changes nothing. There are four independent parts,
--- so reordering something, overriding it, and adding a custom setting never interfere:
+-- optional; an empty descriptor changes nothing. There are five independent parts, so
+-- assigning a section to a tab, reordering it, overriding it, and adding a custom
+-- setting never interfere:
+--
+--   sectionTab  Which tab a section appears on: 1 = "Performance vs. Quality" (the
+--               default), 2 = "General and Static". Keyed by the section's header
+--               global-string key; the header and every setting under it (down to the
+--               next header) move together. The nameless top section and the Graphics
+--               Quality group have no header, so they always stay on tab 1.
+--                   sectionTab = { ["COMPATIBILITY_SETTINGS"] = 2 },
 --
 --   order       A list of Layer-2 CVars to show first, in this order; the rest
 --               keep Blizzard's order after them.
@@ -84,6 +92,10 @@ local _, Graphit = ...
 -- =====================================================================
 
 Graphit.descriptor = {
+
+  sectionTab = {
+    ["COMPATIBILITY_SETTINGS"] = 2,  -- the Compatibility section moves to the static tab
+  },
 
   childOrder = {
     ["graphicsEnvironmentDetail"] = { "doodadLodScale", "lodObjectFadeScale", "lodObjectCullSize", "lodObjectMinSize" },
@@ -181,6 +193,11 @@ Graphit.descriptor = {
     -- confirmApply stages it AND, after the Apply button, pops a countdown popup that
     -- reverts unless kept (see MainFrame's ApplyPending / RevertConfirmSnapshot).
     ["RenderScale"] = { confirmApply = true },
+
+    -- TODO (next): Ray Traced Shadows need at least Shadow Quality "Good"
+    -- (shadowMode >= 2, shadowNumCascades >= 2) or they have no effect.
+
+
   },
 
   custom = {

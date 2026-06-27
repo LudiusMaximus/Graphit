@@ -238,7 +238,7 @@ local REVERT_ATLAS = "transmog-icon-revert"
 -- highlight -- the explanation appended at the end. A row with neither a body nor
 -- the highlight shows nothing. Returns the button so the caller can also bind a
 -- click (an expandable row toggles on a label click, like its chevron).
-local function AddLabelTooltip(row, title, body, extra, appendFunc)
+local function AddLabelTooltip(row, title, body, appendFunc)
   local hasBody = body and body ~= ""
   local hit = CreateFrame("Button", nil, row)
   -- Match the label's width but span the full row height, so the hover/click area
@@ -248,7 +248,7 @@ local function AddLabelTooltip(row, title, body, extra, appendFunc)
   hit:SetPoint("TOPLEFT", row.label, "LEFT", 0, half)
   hit:SetPoint("BOTTOMRIGHT", row.label, "RIGHT", 0, -half)
   hit:SetScript("OnEnter", function(self)
-    if not hasBody and not extra and not appendFunc and not row.pendingHighlight and not row.warningHighlight and not row.restartHighlight then return end
+    if not hasBody and not appendFunc and not row.pendingHighlight and not row.warningHighlight and not row.restartHighlight then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip_SetTitle(GameTooltip, title)
     if hasBody then
@@ -257,10 +257,6 @@ local function AddLabelTooltip(row, title, body, extra, appendFunc)
     -- Blizzard's control tooltip is our name tooltip plus a per-option detail block; mimic
     -- it here (the per-option explanations and the recommended default).
     if appendFunc then appendFunc(GameTooltip) end
-    if extra then  -- greyed supplementary block (e.g. unavailable options and why)
-      if hasBody then GameTooltip_AddBlankLineToTooltip(GameTooltip) end
-      GameTooltip:AddLine(extra, DISABLED_FONT_COLOR.r, DISABLED_FONT_COLOR.g, DISABLED_FONT_COLOR.b, true)
-    end
     -- Pending and warning can both apply (the master may inherit both); show each in its
     -- own colour, warning first to match the dominant label tint. A blank line separates
     -- each from what precedes (always at least the title).
@@ -1055,8 +1051,13 @@ local function Relayout(content)
   local master  = content.masterRow
   local l2Shown = (not master) or master.expanded
   local indent  = master and L2_INDENT or 0
+  local activeTab = content.activeTab or 1
   for _, row in ipairs(content.rows) do
-    if row.isMaster or row.topLevel or row.isHeader then
+    if row.tab and row.tab ~= activeTab then
+      -- belongs to another tab: hidden, and contributes no height to this tab's layout
+      row:Hide()
+      if row.childContainer then row.childContainer:Hide() end
+    elseif row.isMaster or row.topLevel or row.isHeader then
       -- The master, any standalone Layer-1 setting, and the section headers are flush
       -- and always shown, outside the master's collapse group. Headers are taller, so
       -- advance by the row's own height.
@@ -1369,9 +1370,12 @@ local function OptionDetailFunc(base)
   local options = ResolveOptions(base.control)
   if not options then return nil end
   local meta = IsQualityMeta(base.cvar)
-  local hasDetail = meta
+  -- A setting may report a per-option availability (VRS, overruled by Multisample AA) and a
+  -- trailing context hint; both re-evaluated on hover, so they track a live dependency.
+  local optionDisabled, optionsHint = base.optionDisabled, base.optionsHint
+  local hasDetail = meta or optionDisabled ~= nil or optionsHint ~= nil
   for _, o in ipairs(options) do
-    if o.tooltip then hasDetail = true end
+    if o.tooltip or o.unavailable then hasDetail = true end
   end
   if not hasDetail then return nil end
   return function(tip)
@@ -1380,16 +1384,33 @@ local function OptionDetailFunc(base)
     for _, o in ipairs(options) do
       local isDefault = meta and default ~= nil and o.value == default
       if isDefault then recommended = o end
-      if o.tooltip then
+      -- An unsupported option greys its name and explanation and shows the engine's reason in
+      -- red directly below, as Blizzard's CreateOptionsInitTooltip does. The reason is either a
+      -- live per-option check (VRS, re-checked on hover so it tracks Multisample AA) or the
+      -- build-time o.unavailable tag from ValidatedOptions (the hardware-validated sliders).
+      local disabled = (optionDisabled and optionDisabled(o.value)) or o.unavailable
+      if o.tooltip or disabled then
         GameTooltip_AddBlankLineToTooltip(tip)
-        local label = HIGHLIGHT_FONT_COLOR:WrapTextInColorCode(L(o.label))
-        local explain = (isDefault and GREEN_FONT_COLOR or NORMAL_FONT_COLOR):WrapTextInColorCode(L(o.tooltip))
-        tip:AddLine(label .. ": " .. explain, NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, true)
+        -- Keep the ":" in the name's colour (white for an available option) rather than the
+        -- line's grey base, so the separator matches the name, not the explanation.
+        local label = (disabled and DISABLED_FONT_COLOR or HIGHLIGHT_FONT_COLOR):WrapTextInColorCode(L(o.label) .. ":")
+        if o.tooltip then
+          local color = disabled and DISABLED_FONT_COLOR or (isDefault and GREEN_FONT_COLOR) or NORMAL_FONT_COLOR
+          GameTooltip_AddDisabledLine(tip, label .. " " .. color:WrapTextInColorCode(L(o.tooltip)))
+        else
+          GameTooltip_AddDisabledLine(tip, label)
+        end
+        if disabled then GameTooltip_AddErrorLine(tip, disabled) end
       end
     end
     if recommended then  -- the default option, greened, like Blizzard's recommended line
       GameTooltip_AddBlankLineToTooltip(tip)
       GameTooltip_AddHighlightLine(tip, string.format("%s: %s", VIDEO_OPTIONS_RECOMMENDED, GREEN_FONT_COLOR:WrapTextInColorCode(L(recommended.label))))
+    end
+    local hint = optionsHint and optionsHint()  -- e.g. VRS naming MSAA as the likely cause
+    if hint then
+      GameTooltip_AddBlankLineToTooltip(tip)
+      GameTooltip_AddNormalLine(tip, L(hint), true)
     end
   end
 end
@@ -1610,7 +1631,6 @@ local function CreateRow(parent, base)
   -- options unless it lists its own.
   local override = OverrideFor(base.cvar)
   local control
-  local tooltipExtra  -- "<option>: <reason>" lines for options dropped as unavailable
   if base.custom then
     control = base.control
   elseif override and override.control and override.control.kind == "dropdown" then
@@ -1626,17 +1646,14 @@ local function CreateRow(parent, base)
     -- MSAA) becomes an enumerated slider via SliderFromControl.
     local merged = (override and override.control) and MergedControl(base.control, override.control) or base.control
     if merged.optionsFunc then
-      -- Resolve the runtime list, dropping options the hardware does not support and
-      -- collecting their reason so the tooltip can explain it (cleaner than Blizzard,
-      -- which lists them with a per-option note). A categorical list stays a dropdown; a
-      -- quality scale (kind "slider", e.g. VRS) becomes an enumerated slider.
+      -- Resolve the runtime list, dropping options the hardware does not support (a slider /
+      -- dropdown cannot hold an unsupported stop). The dropped options still surface in the
+      -- label tooltip -- greyed, with the engine's reason in red -- via OptionDetailFunc, which
+      -- reads the same o.unavailable tag. A categorical list stays a dropdown; a quality scale
+      -- (kind "slider", e.g. Ray Traced Shadows) becomes an enumerated slider.
       local avail = {}
       for _, o in ipairs(merged.optionsFunc()) do
-        if o.unavailable then
-          tooltipExtra = (tooltipExtra and tooltipExtra .. "\n\n" or "") .. o.label .. ":\n" .. o.unavailable
-        else
-          avail[#avail + 1] = o
-        end
+        if not o.unavailable then avail[#avail + 1] = o end
       end
       if merged.kind == "dropdown" then
         control = { kind = "dropdown", options = avail, betterIsLower = merged.betterIsLower }
@@ -1690,7 +1707,7 @@ local function CreateRow(parent, base)
       if o.warning then row.warningValue = o.value; row.warningText = L(o.warning); break end
     end
   end
-  local labelHit = AddLabelTooltip(row, L(base.name), tip, tooltipExtra, OptionDetailFunc(base))
+  local labelHit = AddLabelTooltip(row, L(base.name), tip, OptionDetailFunc(base))
   -- A click on the name toggles expand/collapse too, matching the chevron.
   if row.expander then
     labelHit:SetScript("OnClick", function() ToggleExpand(row) end)
@@ -1744,10 +1761,15 @@ local function BuildRows(content)
     for _, s in ipairs(d.custom) do s.custom = true; s.topLevel = true; base[s.cvar] = s end
   end
 
+  -- Each row is tagged with the tab its section sits on (sectionTab, advanced at every
+  -- header in the layout walk below); Relayout then lays out only the active tab's rows.
+  local sectionTab = 1
+
   -- Create and register one setting's row (skipping a gated one that is absent).
   local function AddSettingRow(s)
     if not s or (s.gate and not s.gate()) then return end
     local row = CreateRow(content, s)
+    row.tab = sectionTab
     content.rows[#content.rows + 1] = row
     if s.cvar then content.rowByMeta[s.cvar] = row end  -- a CVar-less row (Resolution) has no key
     return row
@@ -1781,8 +1803,12 @@ local function BuildRows(content)
     if IsTopSectionSetting(item) then
       -- rendered in the fixed top section (BuildTopSection), not the scrolling list
     elseif item.header then
+      -- A header opens a new section; its tab (default 1) carries to the rows beneath it.
+      sectionTab = (d and d.sectionTab and d.sectionTab[item.header]) or 1
       if not (item.gate and not item.gate()) then
-        content.rows[#content.rows + 1] = CreateHeaderRow(content, item.header)
+        local row = CreateHeaderRow(content, item.header)
+        row.tab = sectionTab
+        content.rows[#content.rows + 1] = row
       end
     elseif item.quality then
       AddQualityGroup()
@@ -1995,6 +2021,7 @@ local function BuildFrame()
   local content = CreateFrame("Frame", nil, scrollBox)
   content.scrollable = true
   content.scrollBox = scrollBox
+  content.activeTab = 1  -- which tab's rows Relayout shows; the tab buttons set it below
   f.content = content  -- so the saved-pending loader can re-sync rows after applying
   BuildRows(content)
   -- Keep the scroll child width matched to the viewport so rows fill it.
@@ -2010,9 +2037,10 @@ local function BuildFrame()
   -- ===== Tabs =====
   -- Mirror the Settings panel's Game/AddOns tabs: MinimalTabTemplate buttons driven by a
   -- RadioButtonGroup, which gives the selected texture and the white (selected) vs gold
-  -- (unselected) text for free; we add the tab click sound. Two placeholder tabs for now --
-  -- the content switch wires in once the settings are split across tabs. Placement is a
-  -- first pass (clear of the FPS portrait, bottoms on the list's top edge); tune freely.
+  -- (unselected) text for free; we add the tab click sound. Each row is tagged with its
+  -- tab (BuildRows / the descriptor's sectionTab), so selecting a tab just sets
+  -- content.activeTab and relays out. Placement is a first pass (bottoms on the list's
+  -- top edge); tune freely.
   local function MakeTab(text)
     local tab = CreateFrame("Button", nil, f, "MinimalTabTemplate")
     tab.Text:SetText(text)
@@ -2032,8 +2060,11 @@ local function BuildFrame()
   local tabsGroup = CreateRadioButtonGroup()
   tabsGroup:AddButtons({ tab1, tab2 })
   tabsGroup:SelectAtIndex(1)
-  tabsGroup:RegisterCallback(ButtonGroupBaseMixin.Event.Selected, function()
+  -- The Selected event fires as (owner, tab, tabIndex); switch the list to that tab.
+  tabsGroup:RegisterCallback(ButtonGroupBaseMixin.Event.Selected, function(_, _, tabIndex)
     PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB)
+    content.activeTab = tabIndex
+    Relayout(content)
   end, f)
 
   -- ===== Top section: always-visible display settings (Monitor / Display Mode / Resolution) =====

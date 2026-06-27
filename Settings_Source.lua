@@ -243,6 +243,20 @@ local function ValidatedOptions(cvar, defs)
   return opts
 end
 
+-- Like ValidatedOptions but with no per-option support check -- every option always stays in
+-- the list. For a setting whose availability is all-or-nothing and shown by greying the whole
+-- control (VRS, overruled by Multisample AA) rather than dropping individual options, which
+-- would otherwise shrink the control to a lone readout and only correct on /reload.
+local function PlainOptions(defs)
+  local opts = {}
+  for _, d in ipairs(defs) do
+    local o = { value = d.value, label = _G[d.label] or d.label }
+    if d.tooltip then o.tooltip = _G[d.tooltip] or d.tooltip end
+    opts[#opts + 1] = o
+  end
+  return opts
+end
+
 -- Blizzard formats a window size as "WxH"; these helpers are local to its Graphics.lua,
 -- so we mirror them. FormatScreenResolution builds the string, ExtractSizeFromFormattedSize
 -- parses it back to width, height.
@@ -312,6 +326,8 @@ Graphit.layer1 = {
     -- do not cover every size), so we read / write / list it the same way.
     -- A maximised window has its size fixed by the OS, so disable the control and say why.
     enableWhen = function() return not IsWindowMaximized() end,
+    -- Typically, Settings_Source.lua is only supposed to include stuff extracted 1:1 from the Blizzard code.
+    -- But here we make an exception.
     disabledTooltip = "Resolution is locked to your screen size while the game window is maximized. Un-maximising the window or switching to Fullscreen will enable resolution changes again.",
     read = function()
       local size = CurrentWindowSize()
@@ -447,10 +463,11 @@ Graphit.layer1 = {
     set = function(v) return v == 1 and "3" or "2" end,
     control = { kind = "checkbox" } },
 
-  -- Texture Filtering, Ray Traced Shadows and VRS are quality sliders whose options
-  -- Blizzard validates per hardware (AddValidatedCVarOption); ValidatedOptions drops the
-  -- unsupported ones and explains them in the tooltip. (Resample Quality is not validated,
-  -- so it stays a plain static slider.)
+  -- Texture Filtering and Ray Traced Shadows are quality sliders whose options Blizzard
+  -- validates per hardware (AddValidatedCVarOption); ValidatedOptions drops the unsupported
+  -- ones and the label tooltip greys each with the engine's reason in red (OptionDetailFunc).
+  -- (Resample Quality is not validated, so it stays a plain static slider. VRS is validated
+  -- too, but a live dependency -- see its grey-in-place dropdown below.)
   { cvar = "textureFilteringMode", name = "ANISOTROPIC", tooltip = "OPTION_TOOLTIP_ANISOTROPIC", commit = "live",
     control = { kind = "slider", optionsFunc = function()
       return ValidatedOptions("textureFilteringMode", {
@@ -481,14 +498,45 @@ Graphit.layer1 = {
       { value = 3, label = "RESAMPLE_QUALITY_FSR",      tooltip = "VIDEO_OPTIONS_RESAMPLE_QUALITY_FSR"      },
     } } },
 
+  -- VRS is a real dropdown, not the usual validated slider, so it can grey in place rather than
+  -- collapse to a readout. Multisample AA overrules VRS: while MSAA is on the engine reports
+  -- Standard/Aggressive unsupported, and IsGraphicsCVarValueSupported flips the instant MSAA
+  -- changes. We keep all three options via PlainOptions (so the widget never changes shape) and
+  -- grey the whole control through enableWhen -- re-checked on every refresh, which the MSAA edit
+  -- already triggers -- so it greys/ungreys live; the same enableWhen also greys it permanently
+  -- on hardware with no VRS support. While greyed (only Disabled valid), get reports the
+  -- effective state, so the dropdown reads "Disabled" rather than the suspended choice -- the
+  -- CVar is left intact, so the choice returns when VRS is available again. The reasons live in
+  -- the label tooltip (optionDisabled / optionsHint), not a control hover.
   { cvar = "vrsValar", name = "VRS_MODE", tooltip = "OPTION_TOOLTIP_VRS_MODE", commit = "live",
-    control = { kind = "slider", optionsFunc = function()
-      return ValidatedOptions("vrsValar", {
+    control = { kind = "dropdown", optionsFunc = function()
+      return PlainOptions({
         { value = 0, label = "VIDEO_OPTIONS_DISABLED" },
         { value = 1, label = "VIDEO_OPTIONS_STANDARD",   tooltip = "OPTION_TOOLTIP_VRS_STANDARD"   },
         { value = 2, label = "VIDEO_OPTIONS_AGGRESSIVE", tooltip = "OPTION_TOOLTIP_VRS_AGGRESSIVE" },
       })
-    end } },
+    end },
+    get = function(raw)
+      if IsGraphicsCVarValueSupported and IsGraphicsCVarValueSupported("vrsValar", 1) ~= 0 then return 0 end
+      return tonumber(raw) or 0
+    end,
+    enableWhen = function()
+      return not IsGraphicsCVarValueSupported or IsGraphicsCVarValueSupported("vrsValar", 1) == 0
+    end,
+    -- Per-option availability for the label tooltip, re-checked on hover so it tracks MSAA
+    -- live: an unsupported level is greyed with the engine's reason shown in red directly below
+    -- it (rendered Blizzard-style). Returns the reason, or nil when the level is supported.
+    optionDisabled = function(value)
+      local code = IsGraphicsCVarValueSupported and IsGraphicsCVarValueSupported("vrsValar", value) or 0
+      return code ~= 0 and _G[GFX_VALUE_ERRORS[code]] or nil
+    end,
+    -- A trailing hint, only while Multisample AA is on (the engine's reason is a generic
+    -- VRN_GRAPHICS that never names MSAA). Typically Settings_Source only holds strings
+    -- extracted 1:1 from Blizzard; this Graphit message is a deliberate exception.
+    optionsHint = function()
+      local msaa = tonumber((strsplit(",", (C_CVar and C_CVar.GetCVar("MSAAQuality")) or "0"))) or 0
+      return msaa ~= 0 and "Notice that VRS gets automatically disabled by the game while Multisample Anti-Aliasing is enabled." or nil
+    end },
 
   -- gxapi stores an API name; it is matched case-insensitively against the available
   -- APIs. GET normalises to one of them (the last if the value is not among them); the

@@ -104,11 +104,15 @@ local _, Graphit = ...
 --                              time (monitor, resolution, graphics API / card, MSAA).
 --             * validated list (AddValidatedCVarOption): optionsFunc returning
 --                              ValidatedOptions(cvar, defs) -- drops options the hardware
---                              does not support and explains them in the tooltip (Low
---                              Latency, VRS, RT Shadows, Texture Filtering). Reason
---                              strings come from GFX_VALUE_ERRORS, transcribed from
---                              Graphics.lua's ErrorMessages -- re-transcribe it if it
---                              changes.
+--                              does not support; the label tooltip greys each dropped option
+--                              with the engine's reason in red (Low Latency, RT Shadows,
+--                              Texture Filtering). Reason strings come from GFX_VALUE_ERRORS,
+--                              transcribed from Graphics.lua's ErrorMessages -- re-transcribe
+--                              it if it changes. NOTE: VRS (vrsValar) is validated too, but its
+--                              availability flips live (Multisample AA overrules it), so it is
+--                              deliberately NOT a validated slider -- it is a grey-in-place
+--                              dropdown (PlainOptions + enableWhen + get + optionDisabled /
+--                              optionsHint). Keep it that way; see its comment in Settings_Source.
 --             * runtime range (GetMinX / GetMaxX): control = { kind = "slider",
 --                              minFunc =, maxFunc = } (Camera FOV).
 --             * value transform (the CVar value differs from the control value): get =
