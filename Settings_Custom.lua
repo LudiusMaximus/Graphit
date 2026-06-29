@@ -15,15 +15,25 @@ local _, Graphit = ...
 --
 -- This file is the overlay of our declarative decisions on top of that. Every field is
 -- optional; an empty descriptor changes nothing. There are five independent parts, so
--- assigning a section to a tab, reordering it, overriding it, and adding a custom
+-- moving settings to another tab, reordering them, overriding them, and adding a custom
 -- setting never interfere:
 --
---   sectionTab  Which tab a section appears on: 1 = "Performance vs. Quality" (the
---               default), 2 = "General and Static". Keyed by the section's header
---               global-string key; the header and every setting under it (down to the
---               next header) move together. The nameless top section and the Graphics
---               Quality group have no header, so they always stay on tab 1.
---                   sectionTab = { ["COMPATIBILITY_SETTINGS"] = 2 },
+--   tabGroups   The full content of every tab, regrouped under our own headers out of Blizzard's
+--               order. Keyed by tab index (1 = left = "General and Static", 2 = right =
+--               "Performance and Quality"); each value is an ordered list of entries. An entry is
+--               either { quality = true } (the Graphics Quality group: the master and its metas)
+--               or { header, cvars } (a category: its header -- a global-string key or a literal
+--               -- then the listed CVars, in this order). The two can combine in one entry (a
+--               header fronting both some CVars and the quality group). An optional info = "..."
+--               adds a right-aligned info "i" to the header, whose hover shows that text. A
+--               category header shows only when at least one of its settings is present. The
+--               fixed top-band settings (Monitor,
+--               Display Mode, Resolution) are not listed. Anything left out is appended to the
+--               catch-all (Performance) tab, so a new setting never vanishes.
+--                   tabGroups = {
+--                     [1] = { { header = "Frame Rate", cvars = { "maxFPS", "targetFPS" } } },
+--                     [2] = { { quality = true }, { header = "Antialiasing", cvars = { ... } } },
+--                   },
 --
 --   order       A list of Layer-2 CVars to show first, in this order; the rest
 --               keep Blizzard's order after them.
@@ -94,8 +104,74 @@ local _, Graphit = ...
 
 Graphit.descriptor = {
 
-  sectionTab = {
-    ["COMPATIBILITY_SETTINGS"] = 2,  -- the Compatibility section moves to the static tab
+  -- Both tabs' content, grouped under our own headers. First draft -- reorder/regroup freely.
+  tabGroups = {
+
+    -- General and Static (left): set-once display, frame-rate and system settings. These the user
+    -- sets by hand; the per-zone presets will leave them alone.
+    [1] = {
+      {
+        header = "Graphics Device",
+        cvars = { "gxAdapter", "gxapi", "LowLatencyMode", "NotchedDisplayMode" }
+      },
+      {
+        header = "Frame Rate",
+        cvars = {
+          "maxFPS",
+          "maxFPSBk",
+          "targetFPS",
+          "gxMaxFrameLatency",
+          "vsync", 
+        }
+      },
+      {
+        header = "Miscellaneous",
+        info = "This section holds settings you typically don't want or cannot change dynamically.",
+        cvars = {
+          "uiscale",
+          "cameraFov",
+          "physicsLevel"
+        }
+      },
+      {
+        header = "Color",
+        cvars = {
+          "Contrast",
+          "Brightness",
+          "Gamma",
+        }
+      },
+      {
+        header = "COMPATIBILITY_SETTINGS",
+        info = "You should keep all of these checkboxes checked, unless you are facing the problems decribed in their respective tooltips.",
+        cvars = {
+          "GxCompatOptionalGpuFeatures",
+          "GxCompatAsyncShaderCompilation",
+          "GxCompatCommandListMultiThreading",
+          "GxCompatWorkSubmitOptimizations",
+        }
+      },
+    },
+
+    -- Performance and Quality (right): the Graphics Quality preset and everything that trades
+    -- frames for fidelity -- what the per-zone presets will drive.
+    [2] = {
+      {
+        header = "Render Scale and Sharpening",
+        info = "Render at a lower resolution and upscale, then optionally sharpen the result -- a big performance lever with a controllable softness/sharpness trade-off.",
+        cvars = {
+          "RenderScale",
+          "ResampleQuality",
+          "ResampleSharpness",
+          "ResampleAlwaysSharpen",
+        }
+      },      -- Multisample AA and Variable Rate Shading together: VRS is shading, and Multisample AA
+      -- overrules it, so they share a group.
+      { header = "Antialiasing and Shading",    cvars = { "ffxAntiAliasingMode", "MSAAQuality", "msaaAlphaTest", "vrsValar" } },
+      -- The big Graphics Quality section: Texture Filtering and Ray Traced Shadows, then the
+      -- expandable Graphics Quality master + its metas (quality = true), all under one header.
+      { header = "Graphics Quality", cvars = { "textureFilteringMode", "shadowrt" }, quality = true },
+    },
   },
 
   childOrder = {
@@ -211,8 +287,9 @@ Graphit.descriptor = {
       cvar    = "ResampleAlwaysSharpen",
       name    = "Always Sharpen",
       control = { kind = "checkbox" },
-      tooltip = "Forces image sharpening even at 100% render scale, where it is normally skipped.\nTakes a few seconds to show its effect.",
+      tooltip = ("Setting the %1$s slider to lower values normally only has a sharpening effect for \"%2$s\" at render scales below 100%%.\nThis checkbox sets the ResampleAlwaysSharpen cvar, which enables the sharpening at all times."):format(RESAMPLE_SHARPNESS, RESAMPLE_QUALITY_FSR),
     },
   },
 
 }
+

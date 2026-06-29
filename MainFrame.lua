@@ -85,15 +85,21 @@ local MAX_HEIGHT_FRACTION = 1     -- cap on height, as a fraction of screen heig
 
 -- ===== Row layout =====
 
-local ROW_HEIGHT       = 35
-local EXPANDER_WIDTH   = 22    -- reserved left column for the expander button
-local L2_LABEL_WIDTH   = 120   -- master / Layer-2 setting-name column
-local L3_LABEL_WIDTH   = 125   -- Layer-3 child-name column
-local SLIDER_VALUE_GAP = 60    -- room reserved right of a slider for its value readout
-local CHILD_INDENT     = 30    -- Layer-3 child row left indent
-local CHILD_ROW_HEIGHT = 30
-local L2_INDENT        = 12    -- Layer-2 rows indent under the expanded master
-local HEADER_ROW_HEIGHT = 30   -- section-header row (its text sits low, leaving a gap above)
+local ROW_HEIGHT        = 35
+local EXPANDER_WIDTH    = 22    -- reserved left column for the expander button
+local LABEL_LEFT_PAD    = 4     -- left margin for a standalone row's name (no expander column)
+local L2_LABEL_WIDTH    = 120   -- master / Layer-2 setting-name column
+local L3_LABEL_WIDTH    = 125   -- Layer-3 child-name column
+local SLIDER_VALUE_GAP  = 60    -- room reserved right of a slider for its value readout
+local CHILD_INDENT      = 30    -- Layer-3 child row left indent
+local CHILD_ROW_HEIGHT  = 30
+local L2_INDENT         = 12    -- Layer-2 rows indent under the expanded master
+local HEADER_ROW_HEIGHT = 35    -- section-header row (its text sits low, leaving a gap above)
+local SECTION_GAP       = 15    -- extra space above every section header
+
+-- "Performance and Quality" (the right tab): the catch-all that holds any setting a
+-- Settings_Custom tabGroups entry did not place. Update if the tabs renumber.
+local CATCHALL_TAB = 2
 
 -- ===== List frame: scroll box, scrollbar, and the nine-slice border =====
 
@@ -274,7 +280,14 @@ local function AddLabelTooltip(row, title, body, appendFunc)
     end
     if row.pendingHighlight then
       GameTooltip_AddBlankLineToTooltip(GameTooltip)
-      GameTooltip:AddLine("A change is pending that might briefly freeze the game or change the UI layout. Click the flashing " .. CreateAtlasMarkup(REVERT_ATLAS, 20, 20) .. " button above to apply it.", ORANGE_FONT_COLOR.r, ORANGE_FONT_COLOR.g, ORANGE_FONT_COLOR.b, true)
+      -- A row staged by proxy (its effective value follows another setting's uncommitted change,
+      -- e.g. RenderScale driving Resample Quality / Sharpness) explains that link; a row staged in
+      -- its own right gives the freeze / apply note.
+      if row.pendingProxyText then
+        GameTooltip:AddLine(row.pendingProxyText, ORANGE_FONT_COLOR.r, ORANGE_FONT_COLOR.g, ORANGE_FONT_COLOR.b, true)
+      else
+        GameTooltip:AddLine("A change is pending that might briefly freeze the game or change the UI layout. Click the flashing " .. CreateAtlasMarkup(REVERT_ATLAS, 20, 20) .. " button above to apply it.", ORANGE_FONT_COLOR.r, ORANGE_FONT_COLOR.g, ORANGE_FONT_COLOR.b, true)
+      end
     end
     if row.restartHighlight then
       GameTooltip_AddBlankLineToTooltip(GameTooltip)
@@ -744,6 +757,9 @@ end
 local function LogicalValue(cvar)
   return pending[cvar] or GetCVar(cvar)
 end
+-- Settings_Logic reads this so a cross-setting precondition sees the staged value of a deferred
+-- setting (e.g. Resample Quality greys the instant a staged RenderScale crosses 100%).
+Graphit.LogicalValue = LogicalValue
 
 -- Park (or clear) a deferred child's target. It is pending only while different
 -- from the live CVar, so a target equal to reality removes any existing entry.
@@ -1120,8 +1136,9 @@ local function Relayout(content)
       if row.childContainer then row.childContainer:Hide() end
     elseif row.isMaster or row.topLevel or row.isHeader then
       -- The master, any standalone Layer-1 setting, and the section headers are flush
-      -- and always shown, outside the master's collapse group. Headers are taller, so
-      -- advance by the row's own height.
+      -- and always shown, outside the master's collapse group. Each section header gets a
+      -- little space above it; headers are taller, so advance by the row's own height.
+      if row.isHeader and row.lineAbove then y = y - SECTION_GAP end
       row:ClearAllPoints()
       row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
       row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
@@ -1301,8 +1318,13 @@ local function HighlightPending(content)
       -- a standalone Layer-1 setting may itself be staged (pending) or, for a
       -- clientRestart one, differ from the value the running client loaded (violet). A
       -- compound also stages its enable CVar (row.checkCvar), so honour that too.
+      -- A row can also be staged "by proxy": its effective value follows another setting's
+      -- uncommitted change (RenderScale driving Resample Quality / Sharpness). Cache the localised
+      -- reason for the label tooltip, which shows it instead of the own-change freeze note.
+      row.pendingProxyText = row.pendingProxy and FormatHint(row.pendingProxy())
       local staged = (row.cvar and pending[row.cvar] ~= nil)
-                     or (row.checkCvar and pending[row.checkCvar] ~= nil) or false
+                     or (row.checkCvar and pending[row.checkCvar] ~= nil)
+                     or (row.pendingProxyText ~= nil) or false
       SetRowLabelPending(row, staged, RowWarning(row), row.cvar and IsRestartPending(row.cvar) or false)
     end
   end
@@ -1429,20 +1451,22 @@ local function OptionDetailFunc(base)
   -- Resolve options now; their per-option tooltips are what we surface (e.g. Image-Based
   -- Antialiasing). Option-less controls (plain slider, CVar-less, MSAA's format) have none.
   local options = ResolveOptions(base.control)
-  if not options then return nil end
   local meta = IsQualityMeta(base.cvar)
   -- A setting may report a per-option availability (VRS, overruled by Multisample AA); the
-  -- trailing hint / warning notes are appended by AppendNotes below. All re-evaluated on hover.
+  -- trailing hint / warning notes stand on their own, so a plain option-less slider (Resample
+  -- Sharpness) still earns a detail function for them. All re-evaluated on hover.
   local optionDisabled = base.optionDisabled
   local hasDetail = meta or optionDisabled ~= nil or base.optionsHint ~= nil or base.optionsWarning ~= nil
-  for _, o in ipairs(options) do
-    if o.tooltip or o.unavailable then hasDetail = true end
+  if options then
+    for _, o in ipairs(options) do
+      if o.tooltip or o.unavailable then hasDetail = true end
+    end
   end
   if not hasDetail then return nil end
   return function(tip)
     local default = base.cvar and GetCVarDefault and tonumber(GetCVarDefault(base.cvar))
     local recommended
-    for _, o in ipairs(options) do
+    for _, o in ipairs(options or {}) do
       local isDefault = meta and default ~= nil and o.value == default
       if isDefault then recommended = o end
       -- An unsupported option greys its name and explanation and shows the engine's reason in
@@ -1535,12 +1559,19 @@ local function CreateRow(parent, base)
 
   local isMaster = base.cvar == MASTER_CVAR
   row.cvar = base.cvar  -- so HighlightPending can test pending/restart by this row's CVar
+  row.pendingProxy = base.pendingProxy  -- a staged dependency (RenderScale) can stage this by proxy
   -- A custom or other standalone Layer-1 setting sits at the master's level, outside
   -- the collapse group.
   row.topLevel = base.topLevel or base.custom
 
   -- The master is a parent (it reconciles a level like the metas); its expander
   -- shows or hides the Layer-2 rows below it (its "children"), expanded by default.
+  -- Expander column: the master and any meta with Layer-3 children get a working "+"; a childless
+  -- meta keeps a greyed placeholder so its name stays aligned with its siblings in the Quality
+  -- group. A standalone Layer-1 / custom setting is not in that group and never has children, so
+  -- it drops the column entirely -- its name starts flush left, the freed width folded into the
+  -- name column (the control column stays put).
+  local labelLeft, labelWidth = EXPANDER_WIDTH, L2_LABEL_WIDTH
   if isMaster then
     row.meta     = base.cvar
     row.isMaster = true
@@ -1555,16 +1586,19 @@ local function CreateRow(parent, base)
     row.expanded = false
     CreateExpander(row)
 
+  elseif row.topLevel then
+    labelLeft, labelWidth = LABEL_LEFT_PAD, L2_LABEL_WIDTH + EXPANDER_WIDTH - LABEL_LEFT_PAD
+
   -- Childless Layer-2 setting: a greyed-out expander, for column symmetry only.
   else
     CreatePlaceholderExpander(row)
   end
 
   row.label = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-  row.label:SetPoint("LEFT", EXPANDER_WIDTH, 0)
-  row.label:SetWidth(L2_LABEL_WIDTH)
+  row.label:SetPoint("LEFT", labelLeft, 0)
+  row.label:SetWidth(labelWidth)
   row.label:SetJustifyH("LEFT")
-  row.label:SetWordWrap(false)
+  row.label:SetWordWrap(true)  -- long names wrap (left-aligned) instead of truncating
   row.labelColor = NORMAL_FONT_COLOR  -- GameFontNormal's own color; turned to warning when pending
   row.label:SetText(L(base.name))
 
@@ -1670,6 +1704,9 @@ local function CreateRow(parent, base)
           -- frame out from under the slider).
           SetPending(base.cvar, cvarValue)
           if RefreshApplyButton then RefreshApplyButton() end
+          -- A staged value can still be a precondition for another control (RenderScale greys
+          -- Resample Quality / Sharpness), so re-evaluate the dependent enableWhen rows now.
+          RefreshEnableStates(parent)
         else
           SetCVar(base.cvar, cvarValue)
           if commit == "windowUpdate" then UpdateWindow() end
@@ -1776,23 +1813,47 @@ local function CreateRow(parent, base)
   return row
 end
 
--- A section-header row: the label sits low with a thin divider beneath it, leaving a
--- gap above that separates it from the section before. Flush and always shown (it has
--- no control and is not interactive), it is laid out by Relayout like the master.
-local function CreateHeaderRow(parent, headerKey)
+-- A section-header row: the label sits low; a thin divider above it separates it from the
+-- section before (lineAbove -- the tab's first header passes false, so it gets none). Flush and
+-- always shown (no control, not interactive), laid out by Relayout like the master.
+local function CreateHeaderRow(parent, headerKey, info, lineAbove)
   local row = CreateFrame("Frame", nil, parent)
   row:SetHeight(HEADER_ROW_HEIGHT)
   row.isHeader = true
+  row.lineAbove = lineAbove  -- false for the tab's first header: no divider and no SECTION_GAP
 
   local fs = row:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
   fs:SetPoint("BOTTOMLEFT", 2, 6)
+  fs:SetTextColor(WHITE_FONT_COLOR:GetRGB())  -- white, like the Settings panel's section headers
   fs:SetText(L(headerKey))
 
-  local line = row:CreateTexture(nil, "ARTWORK")
-  line:SetColorTexture(1, 1, 1, 0.15)
-  line:SetHeight(1)
-  line:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 1)
-  line:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -4, 1)
+  -- An optional right-aligned info "i" (the category's `info` in Settings_Custom): hover-only,
+  -- shows that text as a tooltip -- no click, no sound. Absent when the category defines no info.
+  if info then
+    local btn = CreateFrame("Button", nil, row)
+    btn:SetSize(30, 30)
+    -- Directly right of the title so it tracks the title's length at runtime; the -8 drops it to
+    -- sit level with the title text (which is anchored 6px up from the row's bottom).
+    btn:SetPoint("BOTTOMLEFT", fs, "BOTTOMRIGHT", 0, -8)
+    btn:SetNormalTexture("Interface\\common\\help-i")
+    -- Rather not use hover glow. It gives the impression the button is clickable which it is not.
+    -- btn:SetHighlightAtlas("ChallengeMode-KeystoneSlotFrameGlow")
+    btn:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip_SetTitle(GameTooltip, L(headerKey))
+      GameTooltip_AddNormalLine(GameTooltip, L(info), true)
+      GameTooltip:Show()
+    end)
+    btn:SetScript("OnLeave", GameTooltip_Hide)
+  end
+
+  if lineAbove then
+    local line = row:CreateTexture(nil, "ARTWORK")
+    line:SetColorTexture(1, 1, 1, 0.15)
+    line:SetHeight(1)
+    line:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -1)
+    line:SetPoint("TOPRIGHT", row, "TOPRIGHT", -4, -1)
+  end
   return row
 end
 
@@ -1819,22 +1880,27 @@ local function BuildRows(content)
     for _, s in ipairs(d.custom) do s.custom = true; s.topLevel = true; base[s.cvar] = s end
   end
 
-  -- Each row is tagged with the tab its section sits on (sectionTab, advanced at every
-  -- header in the layout walk below); Relayout then lays out only the active tab's rows.
-  local sectionTab = 1
+  -- Rows are tagged with the tab currently being built; Relayout lays out only the active one.
+  local currentTab = 1
 
   -- Create and register one setting's row (skipping a gated one that is absent).
   local function AddSettingRow(s)
     if not s or (s.gate and not s.gate()) then return end
     local row = CreateRow(content, s)
-    row.tab = sectionTab
+    row.tab = currentTab
     content.rows[#content.rows + 1] = row
     if s.cvar then content.rowByMeta[s.cvar] = row end  -- a CVar-less row (Resolution) has no key
     return row
   end
 
-  -- The Graphics Quality group: the master leads, then the metas the descriptor's
-  -- `order` hoists, then the rest in Blizzard order, then any custom rows after them.
+  local function AddHeaderRow(headerKey, info, lineAbove)
+    local row = CreateHeaderRow(content, headerKey, info, lineAbove)
+    row.tab = currentTab
+    content.rows[#content.rows + 1] = row
+  end
+
+  -- The Graphics Quality group: the master leads, then the metas the descriptor's `order` hoists,
+  -- then the rest in Blizzard order. (Custom rows are placed by tabGroups like any other setting.)
   local function AddQualityGroup()
     local seen, order = {}, {}
     if base[MASTER_CVAR] then order[#order + 1] = MASTER_CVAR; seen[MASTER_CVAR] = true end
@@ -1846,39 +1912,57 @@ local function BuildRows(content)
     for _, s in ipairs(Graphit.layer2) do
       if not seen[s.cvar] then order[#order + 1] = s.cvar; seen[s.cvar] = true end
     end
-    if d and d.custom then
-      for _, s in ipairs(d.custom) do
-        if not seen[s.cvar] then order[#order + 1] = s.cvar; seen[s.cvar] = true end
-      end
-    end
     for _, cvar in ipairs(order) do
       local row = AddSettingRow(base[cvar])
       if row and cvar == MASTER_CVAR then content.masterRow = row end
     end
   end
 
-  for _, item in ipairs(Graphit.layer1) do
-    if IsTopSectionSetting(item) then
-      -- rendered in the fixed top section (BuildTopSection), not the scrolling list
-    elseif item.header then
-      -- A header opens a new section; its tab (default 1) carries to the rows beneath it.
-      sectionTab = (d and d.sectionTab and d.sectionTab[item.header]) or 1
-      if not (item.gate and not item.gate()) then
-        local row = CreateHeaderRow(content, item.header)
-        row.tab = sectionTab
-        content.rows[#content.rows + 1] = row
+  -- Both tabs are laid out from tabGroups, in the listed order. An entry is { header?, cvars?,
+  -- quality? }: its header renders lazily (only once a setting under it is present), then the
+  -- listed CVars, then -- if quality = true -- the Graphics Quality group (master + metas) under
+  -- the same header. So an entry can be just settings, just the Quality group (headerless), or a
+  -- header that fronts both (the bigger Graphics Quality section). The fixed top-band settings
+  -- (BuildTopSection) are not listed here.
+  if d and d.tabGroups then
+    local indices = {}
+    for tabIndex in pairs(d.tabGroups) do indices[#indices + 1] = tabIndex end
+    table.sort(indices)
+    for _, tabIndex in ipairs(indices) do
+      currentTab = tabIndex
+      local tabHasHeader = false  -- the tab's first header gets no divider above it
+      for _, e in ipairs(d.tabGroups[tabIndex]) do
+        local headerShown = false
+        local function ShowHeader()
+          if e.header and not headerShown then
+            AddHeaderRow(e.header, e.info, tabHasHeader)
+            headerShown, tabHasHeader = true, true
+          end
+        end
+        for _, cvar in ipairs(e.cvars or {}) do
+          local s = base[cvar]
+          if s and not (s.gate and not s.gate()) then ShowHeader(); AddSettingRow(s) end
+        end
+        if e.quality then ShowHeader(); AddQualityGroup() end
       end
-    elseif item.quality then
-      AddQualityGroup()
-    elseif item.cvar then
-      AddSettingRow(base[item.cvar])
-    elseif item.read then
-      -- a CVar-less standalone setting (Resolution): not keyed in `base` by a cvar, so
-      -- flag it topLevel and build it straight from the layout entry.
-      item.topLevel = true
+    end
+  end
+
+  -- Safety net: a standalone (or custom) setting that tabGroups did not place -- e.g. a new one
+  -- from a patch we have not categorised yet -- still shows up, appended to the catch-all tab so
+  -- nothing silently vanishes; likewise the Quality group if no tab claimed it.
+  currentTab = CATCHALL_TAB
+  for _, item in ipairs(Graphit.layer1) do
+    if item.cvar and not content.rowByMeta[item.cvar] and not IsTopSectionSetting(item) then
       AddSettingRow(item)
     end
   end
+  if d and d.custom then
+    for _, s in ipairs(d.custom) do
+      if not content.rowByMeta[s.cvar] then AddSettingRow(s) end
+    end
+  end
+  if not content.masterRow then AddQualityGroup() end
 
   -- Each row seeded only its own markers; reconcile the master once more now that
   -- all Layer-2 rows exist, so it inherits any that are already deviating.
@@ -2079,24 +2163,41 @@ local function BuildFrame()
   local content = CreateFrame("Frame", nil, scrollBox)
   content.scrollable = true
   content.scrollBox = scrollBox
-  content.activeTab = 1  -- which tab's rows Relayout shows; the tab buttons set it below
+  -- Which tab's rows Relayout shows. Restored from the SavedVariable (the tab buttons save it
+  -- below); first-ever open lands on General and Static (tab 1).
+  content.activeTab = (Graphit_config and Graphit_config.activeTab) or 1
   f.content = content  -- so the saved-pending loader can re-sync rows after applying
   BuildRows(content)
   -- Keep the scroll child width matched to the viewport so rows fill it.
   scrollBox:HookScript("OnSizeChanged", function() content:SetWidth(scrollBox:GetWidth()) end)
 
   ScrollUtil.InitScrollBoxWithScrollBar(scrollBox, scrollBar, CreateScrollBoxLinearView())
+  scrollBar:SetHideIfUnscrollable(true)  -- hide the bar when the content fits (e.g. a short tab)
   -- Single-child ScrollBox: the "pan extent" (per step / per wheel notch)
   -- defaults to the whole content frame, so a step would jump to min/max.
   -- Make a step one row instead.
   scrollBox:SetPanExtent(ROW_HEIGHT)
   scrollBox:FullUpdate()
 
+  -- Persist the scroll position (0-1) live, so it survives a /reload; restored once on first show
+  -- (the scroll range is only valid once the frame is laid out, hence the deferral below).
+  scrollBox:RegisterCallback(BaseScrollBoxEvents.OnScroll, function(_, scrollPercentage)
+    Graphit_config = Graphit_config or {}
+    Graphit_config.scroll = scrollPercentage
+  end, f)
+  local scrollRestored = false
+  f:HookScript("OnShow", function()
+    if scrollRestored then return end
+    scrollRestored = true
+    local pct = Graphit_config and Graphit_config.scroll
+    if pct then C_Timer.After(0, function() scrollBox:SetScrollPercentage(pct, true) end) end
+  end)
+
   -- ===== Tabs =====
   -- Mirror the Settings panel's Game/AddOns tabs: MinimalTabTemplate buttons driven by a
   -- RadioButtonGroup, which gives the selected texture and the white (selected) vs gold
   -- (unselected) text for free; we add the tab click sound. Each row is tagged with its
-  -- tab (BuildRows / the descriptor's sectionTab), so selecting a tab just sets
+  -- tab (BuildRows / the descriptor's tabGroups), so selecting a tab just sets
   -- content.activeTab and relays out. Placement is a first pass (bottoms on the list's
   -- top edge); tune freely.
   local function MakeTab(text)
@@ -2104,8 +2205,10 @@ local function BuildFrame()
     tab.Text:SetText(text)
     return tab  -- width comes from the BOTTOMLEFT/BOTTOMRIGHT anchors below
   end
-  local tab1 = MakeTab("Performance vs. Quality")
-  local tab2 = MakeTab("General and Static")
+  -- Left tab is index 1 (General and Static), right tab is index 2 (Performance and Quality),
+  -- matching tabGroups; the indices are the visual left-to-right order.
+  local tab1 = MakeTab("General and Static")
+  local tab2 = MakeTab("Performance and Quality")
   local tab_y = 6
   local tab_gap = 5
   tab1:SetPoint("BOTTOMLEFT",  scrollBox, "TOPLEFT",  0,                 tab_y)
@@ -2113,16 +2216,18 @@ local function BuildFrame()
   tab2:SetPoint("BOTTOMLEFT",  scrollBox, "TOP",       tab_gap/2,        tab_y)
   tab2:SetPoint("BOTTOMRIGHT", scrollBox, "TOPRIGHT", SCROLLBAR_CHANNEL, tab_y)
 
-  -- Select index 1 BEFORE registering the callback, so the initial selection does not fire
-  -- the click sound (the Settings panel orders it the same way).
+  -- Select the restored tab BEFORE registering the callback, so the initial selection does not
+  -- fire the click sound (the Settings panel orders it the same way).
   local tabsGroup = CreateRadioButtonGroup()
   tabsGroup:AddButtons({ tab1, tab2 })
-  tabsGroup:SelectAtIndex(1)
-  -- The Selected event fires as (owner, tab, tabIndex); switch the list to that tab.
+  tabsGroup:SelectAtIndex(content.activeTab)
+  -- The Selected event fires as (owner, tab, tabIndex); switch the list to that tab and save it.
   tabsGroup:RegisterCallback(ButtonGroupBaseMixin.Event.Selected, function(_, _, tabIndex)
     PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB)
     content.activeTab = tabIndex
     Relayout(content)
+    Graphit_config = Graphit_config or {}
+    Graphit_config.activeTab = tabIndex
   end, f)
 
   -- ===== Top section: always-visible display settings (Monitor / Display Mode / Resolution) =====

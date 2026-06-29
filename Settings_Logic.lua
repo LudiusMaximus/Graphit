@@ -51,6 +51,36 @@ local function IsWindowMaximized()
   return def ~= nil and GetPhysicalScreenSize() == def.x
 end
 
+local RESAMPLE_BICUBIC, RESAMPLE_FSR = 2, 3  -- ResampleQuality option values (see Settings_Source)
+local RESAMPLE_SHARPNESS_MAX = 2  -- the slider's max readout; reversed bar, so this is no sharpening
+
+local function StoredResampleQuality()
+  return tonumber((C_CVar and C_CVar.GetCVar("ResampleQuality")) or "0") or 0
+end
+local function AlwaysSharpenOn()
+  return (tonumber((C_CVar and C_CVar.GetCVar("ResampleAlwaysSharpen")) or "0") or 0) ~= 0
+end
+
+-- The Resample Quality in effect for a given "render scale is upscaling" state: the stored choice
+-- while upscaling, otherwise Bicubic (the engine resamples with Bicubic at 100% and above).
+local function ResampleQualityFor(upscaling)
+  if not upscaling then return RESAMPLE_BICUBIC end
+  return StoredResampleQuality()
+end
+-- Whether sharpening is applied for that state: FSR upscaling, or Always Sharpen forcing it on.
+local function SharpeningFor(upscaling)
+  return AlwaysSharpenOn() or ResampleQualityFor(upscaling) == RESAMPLE_FSR
+end
+
+-- Render Scale is a fraction (1.0 = 100%) and only upscales below it. The pending-aware read
+-- honours a staged change; the committed read is the live CVar. They differ exactly while a Render
+-- Scale change is uncommitted -- which is how the dependent rows flag themselves pending by proxy.
+local function PendingUpscaling() return (tonumber(Graphit.LogicalValue("RenderScale")) or 1) < 1 end
+local function LiveUpscaling()    return (tonumber(GetCVar("RenderScale")) or 1) < 1 end
+
+-- Orange note on a dependent row whose effective value follows an uncommitted Render Scale change.
+local PENDING_PROXY = "This reflects your uncommitted \"%1$s\" change."
+
 Graphit.logic = {
 
   -- Variable Rate Shading: Multisample AA overrules it -- while MSAA is on the engine reports
@@ -74,7 +104,7 @@ Graphit.logic = {
     optionsHint = function()
       local msaa = tonumber((strsplit(",", (C_CVar and C_CVar.GetCVar("MSAAQuality")) or "0"))) or 0
       if msaa ~= 0 then
-        return "Notice that VRS gets automatically disabled by the game while \"%1$s\" is enabled.", MSAA_LABEL
+        return "VRS gets automatically disabled by the game while \"%1$s\" is enabled.", MSAA_LABEL
       end
     end,
   },
@@ -108,6 +138,50 @@ Graphit.logic = {
   -- disable -- the user may still set them for when they turn Ray Traced Shadows off).
   ["shadowSoft"]        = { optionsWarning = IgnoredWhileRayTraced },
   ["shadowTextureSize"] = { optionsWarning = IgnoredWhileRayTraced },
+
+  -- Resample Quality only has an effect while the render scale is upscaling (below 100%); at or
+  -- above 100% the engine always uses Bicubic. Grey the dropdown there and show Bicubic as the
+  -- effective choice, the stored value left intact so it returns once the render scale drops back
+  -- below 100%. A normal-font hint explains why (like VRS, not a red warning).
+  ["ResampleQuality"] = {
+    enableWhen = function() return PendingUpscaling() end,
+    get = function(raw)
+      if not PendingUpscaling() then return RESAMPLE_BICUBIC end
+      return tonumber(raw) or 0
+    end,
+    optionsHint = function()
+      if not PendingUpscaling() then
+        return "At a \"%1$s\" of 100%% or higher the game always resamples with \"%2$s\".",
+          RENDER_SCALE, RESAMPLE_QUALITY_BICUBIC
+      end
+    end,
+    pendingProxy = function()
+      if ResampleQualityFor(PendingUpscaling()) ~= ResampleQualityFor(LiveUpscaling()) then
+        return PENDING_PROXY, RENDER_SCALE
+      end
+    end,
+  },
+
+  -- Resample Sharpness only sharpens FSR upscaling, unless Always Sharpen forces it on. Otherwise
+  -- grey the slider and pin its readout to the max (2.0 = no sharpening), the stored value left
+  -- intact. A red warning names the FSR requirement (like the Ray Traced Shadow note).
+  ["ResampleSharpness"] = {
+    enableWhen = function() return SharpeningFor(PendingUpscaling()) end,
+    get = function(raw)
+      if not SharpeningFor(PendingUpscaling()) then return RESAMPLE_SHARPNESS_MAX end
+      return tonumber(raw) or 0
+    end,
+    optionsWarning = function()
+      if not SharpeningFor(PendingUpscaling()) then
+        return "Only has an effect while \"%1$s\" is set to \"%2$s\", unless \"Always Sharpen\" is enabled.", RESAMPLE_QUALITY, RESAMPLE_QUALITY_FSR
+      end
+    end,
+    pendingProxy = function()
+      if SharpeningFor(PendingUpscaling()) ~= SharpeningFor(LiveUpscaling()) then
+        return PENDING_PROXY, RENDER_SCALE
+      end
+    end,
+  },
 
   -- Resolution (CVar-less, keyed by its name): a maximised window has its size fixed by the OS,
   -- so disable the control and say why. The mirror's read / write / option list stays in
