@@ -17,7 +17,7 @@ local _, Graphit = ...
 --
 -- User-facing strings name other settings / options via numbered %1$s... placeholders fed from
 -- the game's own localised globals (so a translation can reorder them and they always match the
--- live UI labels); MainFrame's FormatHint runs L on the template, then format inserts the names.
+-- live UI labels); MainFrame's FormatHint runs Str on the template, then format inserts the names.
 -- =====================================================================
 
 -- shadowMode 0 = no shadows at all, which is the only state that fully disables Ray Traced
@@ -128,8 +128,26 @@ Graphit.logic = {
     end,
     optionsWarning = function()
       if ShadowMode() == 0 then
-        return "Your \"%1$s\" is currently set to \"%2$s\", so Ray Traced Shadows are disabled.",
-          SHADOW_QUALITY, VIDEO_OPTIONS_LOW
+        return "Your \"%1$s\" is currently set to \"%2$s\", so \"%3$s\" is disabled.",
+          SHADOW_QUALITY, VIDEO_OPTIONS_LOW, RT_SHADOW_QUALITY
+      end
+    end,
+  },
+
+  -- SSAO needs shadow rendering: when Shadow Quality is Low (shadowMode 0) the engine turns it off.
+  -- Same gate as Ray Traced Shadows -- grey the dropdown and show the effective Disabled, the stored
+  -- level kept so it returns once shadows are back; a red warning names the cause. (graphicsSSAO is
+  -- a single-child meta, so it binds like a plain setting -- enableWhen / get / notes all apply.)
+  ["graphicsSSAO"] = {
+    enableWhen = function() return ShadowMode() > 0 end,
+    get = function(raw)
+      if ShadowMode() == 0 then return 0 end
+      return tonumber(raw) or 0
+    end,
+    optionsWarning = function()
+      if ShadowMode() == 0 then
+        return "Your \"%1$s\" is currently set to \"%2$s\", so \"%3$s\" is disabled.",
+          SHADOW_QUALITY, VIDEO_OPTIONS_LOW, SSAO_LABEL
       end
     end,
   },

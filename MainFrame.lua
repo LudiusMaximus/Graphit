@@ -97,8 +97,8 @@ local L2_INDENT         = 12    -- Layer-2 rows indent under the expanded master
 local HEADER_ROW_HEIGHT = 35    -- section-header row (its text sits low, leaving a gap above)
 local SECTION_GAP       = 15    -- extra space above every section header
 
--- "Performance and Quality" (the right tab): the catch-all that holds any setting a
--- Settings_Custom tabGroups entry did not place. Update if the tabs renumber.
+-- The right tab is the catch-all that holds any setting a Settings_Custom tabGroups entry
+-- did not place. Update if the tabs renumber.
 local CATCHALL_TAB = 2
 
 -- ===== List frame: scroll box, scrollbar, and the nine-slice border =====
@@ -219,9 +219,10 @@ local MASTER_CVAR = "graphicsQuality"
 
 local frame  -- built lazily on first toggle
 
--- Resolve a global string key to its localized value, falling back to the
--- key itself so a missing/renamed global stays visible instead of blank.
-local function L(key)
+-- Resolve a stored key to display text: a WoW global string if the key names one, otherwise the
+-- key verbatim (a Graphit literal -- which becomes an AceLocale L["..."] lookup once we localise).
+-- Named Str, not L, so L stays free for that AceLocale string table (as in our other addons).
+local function Str(key)
   return key and (_G[key] or key) or ""
 end
 
@@ -301,13 +302,13 @@ end
 
 -- Localise a Graphit tooltip line that names other settings or their options. The producer
 -- returns the template (numbered %1$s... placeholders) followed by those names, taken live from
--- the game's localised globals; L translates the template first, then format inserts the names.
--- Numbered placeholders let a translation reorder them, and L keys on the stable template, not
+-- the game's localised globals; Str resolves the template first, then format inserts the names.
+-- Numbered placeholders let a translation reorder them, and Str keys on the stable template, not
 -- the filled-in result. nil template (producer opted out) -> nil.
 local function FormatHint(template, ...)
   if not template then return nil end
-  if select("#", ...) > 0 then return L(template):format(...) end
-  return L(template)
+  if select("#", ...) > 0 then return Str(template):format(...) end
+  return Str(template)
 end
 
 -- Append a setting's trailing tooltip notes from its Settings_Logic entry: an always-on hint
@@ -681,7 +682,7 @@ local function SliderFromControl(control)
   local values, labels = {}, {}
   for _, o in ipairs(options) do
     values[#values + 1] = o.value
-    labels[o.value] = L(o.label)
+    labels[o.value] = Str(o.label)
   end
   table.sort(values)
   return { kind = "slider", values = values, labels = labels, betterIsLower = control.betterIsLower }
@@ -1028,7 +1029,7 @@ local function CreateChildRow(parent, childCvar, meta, parentRow, control)
   local override = OverrideFor(childCvar)
   local logic = Graphit.logic and Graphit.logic[childCvar]
   local appendFunc = logic and (logic.optionsHint or logic.optionsWarning) and function(tip) AppendNotes(tip, logic) end
-  AddLabelTooltip(row, childCvar, L(override and override.tooltip), appendFunc)
+  AddLabelTooltip(row, childCvar, Str(override and override.tooltip), appendFunc)
 
   local data = Graphit.layer3[meta][childCvar]
 
@@ -1478,10 +1479,10 @@ local function OptionDetailFunc(base)
         GameTooltip_AddBlankLineToTooltip(tip)
         -- Keep the ":" in the name's colour (white for an available option) rather than the
         -- line's grey base, so the separator matches the name, not the explanation.
-        local label = (disabled and DISABLED_FONT_COLOR or HIGHLIGHT_FONT_COLOR):WrapTextInColorCode(L(o.label) .. ":")
+        local label = (disabled and DISABLED_FONT_COLOR or HIGHLIGHT_FONT_COLOR):WrapTextInColorCode(Str(o.label) .. ":")
         if o.tooltip then
           local color = disabled and DISABLED_FONT_COLOR or (isDefault and GREEN_FONT_COLOR) or NORMAL_FONT_COLOR
-          GameTooltip_AddDisabledLine(tip, label .. " " .. color:WrapTextInColorCode(L(o.tooltip)))
+          GameTooltip_AddDisabledLine(tip, label .. " " .. color:WrapTextInColorCode(Str(o.tooltip)))
         else
           GameTooltip_AddDisabledLine(tip, label)
         end
@@ -1490,7 +1491,7 @@ local function OptionDetailFunc(base)
     end
     if recommended then  -- the default option, greened, like Blizzard's recommended line
       GameTooltip_AddBlankLineToTooltip(tip)
-      GameTooltip_AddHighlightLine(tip, string.format("%s: %s", VIDEO_OPTIONS_RECOMMENDED, GREEN_FONT_COLOR:WrapTextInColorCode(L(recommended.label))))
+      GameTooltip_AddHighlightLine(tip, string.format("%s: %s", VIDEO_OPTIONS_RECOMMENDED, GREEN_FONT_COLOR:WrapTextInColorCode(Str(recommended.label))))
     end
     AppendNotes(tip, base)  -- the always-on hint then the current-state warning, if any
   end
@@ -1594,13 +1595,18 @@ local function CreateRow(parent, base)
     CreatePlaceholderExpander(row)
   end
 
+  -- A descriptor override may rename the row (overrides[cvar].name); else the mirror's name.
+  -- A literal or a global-string key, resolved through Str like any other name.
+  local override = OverrideFor(base.cvar)
+  local displayName = (override and override.name) or base.name
+
   row.label = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
   row.label:SetPoint("LEFT", labelLeft, 0)
   row.label:SetWidth(labelWidth)
   row.label:SetJustifyH("LEFT")
   row.label:SetWordWrap(true)  -- long names wrap (left-aligned) instead of truncating
   row.labelColor = NORMAL_FONT_COLOR  -- GameFontNormal's own color; turned to warning when pending
-  row.label:SetText(L(base.name))
+  row.label:SetText(Str(displayName))
 
   -- A placeholder row -- a setting we have not wired up yet (runtime-driven, or a
   -- control shape we do not render yet). Greyed name, an em-dash where the control
@@ -1611,7 +1617,7 @@ local function CreateRow(parent, base)
     local note = row:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     note:SetPoint("RIGHT", row, "RIGHT", -8, 0)
     note:SetText("—")
-    AddLabelTooltip(row, L(base.name), "Not yet available in Graphit.")
+    AddLabelTooltip(row, Str(displayName), "Not yet available in Graphit.")
     return row
   end
 
@@ -1723,8 +1729,7 @@ local function CreateRow(parent, base)
   -- A custom setting carries its own control verbatim. Otherwise default to a slider
   -- (SliderFromControl keeps a dropdown's labels on the readout); a descriptor
   -- override forces another kind, and a dropdown override reuses the Blizzard mirror's
-  -- options unless it lists its own.
-  local override = OverrideFor(base.cvar)
+  -- options unless it lists its own. (override resolved above, with the name.)
   local control
   if base.custom then
     control = base.control
@@ -1767,14 +1772,14 @@ local function CreateRow(parent, base)
     end
   elseif control.kind == "dropdown" then
     if #control.options <= 1 then
-      CreateStaticReadout(row, control.options[1] and L(control.options[1].label))
+      CreateStaticReadout(row, control.options[1] and Str(control.options[1].label))
     else
       local opts = {}
       for _, o in ipairs(control.options) do
-        opts[#opts + 1] = { value = o.value, text = L(o.label) }
+        opts[#opts + 1] = { value = o.value, text = Str(o.label) }
       end
       CreateDropdown(row, binding, opts, control.betterIsLower,
-                     base.enableWhen, base.disabledTooltip and L(base.disabledTooltip))
+                     base.enableWhen, base.disabledTooltip and Str(base.disabledTooltip))
     end
   elseif control.kind == "checkbox" then
     CreateCheckbox(row, binding, base.enableWhen)
@@ -1782,15 +1787,15 @@ local function CreateRow(parent, base)
     CreateCheckboxSlider(row, binding, base, parent)
   end
 
-  -- Tooltip: a descriptor override wins (literal text or a key, via L); otherwise
+  -- Tooltip: a descriptor override wins (literal text or a key, via Str); otherwise
   -- the Blizzard mirror's key, resolved strictly -- an undefined one (e.g. Blizzard
   -- references OPTION_TOOLTIP_GRAPHICS_QUALITY but never defines it) shows nothing,
   -- not its raw name.
   local tip
   if base.custom then
-    tip = base.tooltip and L(base.tooltip)
+    tip = base.tooltip and Str(base.tooltip)
   elseif override and override.tooltip then
-    tip = L(override.tooltip)
+    tip = Str(override.tooltip)
   elseif base.tooltip then
     tip = _G[base.tooltip]
   end
@@ -1799,10 +1804,10 @@ local function CreateRow(parent, base)
   local detailOptions = ResolveOptions(base.control)
   if detailOptions then
     for _, o in ipairs(detailOptions) do
-      if o.warning then row.warningValue = o.value; row.warningText = L(o.warning); break end
+      if o.warning then row.warningValue = o.value; row.warningText = Str(o.warning); break end
     end
   end
-  local labelHit = AddLabelTooltip(row, L(base.name), tip, OptionDetailFunc(base))
+  local labelHit = AddLabelTooltip(row, Str(displayName), tip, OptionDetailFunc(base))
   -- A click on the name toggles expand/collapse too, matching the chevron.
   if row.expander then
     labelHit:SetScript("OnClick", function() ToggleExpand(row) end)
@@ -1825,7 +1830,7 @@ local function CreateHeaderRow(parent, headerKey, info, lineAbove)
   local fs = row:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
   fs:SetPoint("BOTTOMLEFT", 2, 6)
   fs:SetTextColor(WHITE_FONT_COLOR:GetRGB())  -- white, like the Settings panel's section headers
-  fs:SetText(L(headerKey))
+  fs:SetText(Str(headerKey))
 
   -- An optional right-aligned info "i" (the category's `info` in Settings_Custom): hover-only,
   -- shows that text as a tooltip -- no click, no sound. Absent when the category defines no info.
@@ -1840,8 +1845,8 @@ local function CreateHeaderRow(parent, headerKey, info, lineAbove)
     -- btn:SetHighlightAtlas("ChallengeMode-KeystoneSlotFrameGlow")
     btn:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-      GameTooltip_SetTitle(GameTooltip, L(headerKey))
-      GameTooltip_AddNormalLine(GameTooltip, L(info), true)
+      GameTooltip_SetTitle(GameTooltip, Str(headerKey))
+      GameTooltip_AddNormalLine(GameTooltip, Str(info), true)
       GameTooltip:Show()
     end)
     btn:SetScript("OnLeave", GameTooltip_Hide)
@@ -1860,7 +1865,7 @@ end
 -- Build every row (stored on content.rows) by walking the Layer-1 layout: section
 -- headers, the Graphics Quality group (the master plus its Layer-2 meta rows and any
 -- custom rows), and the standalone Layer-1 settings of the other sections. Within the
--- Quality group the descriptor's `order` still leads, the rest follow Blizzard order.
+-- Quality group the descriptor's `metaOrder` still leads, the rest follow Blizzard order.
 local function BuildRows(content)
   content.rows = {}
   content.rowByMeta = {}  -- cvar -> row, for the master's per-meta level lookup
@@ -1899,13 +1904,13 @@ local function BuildRows(content)
     content.rows[#content.rows + 1] = row
   end
 
-  -- The Graphics Quality group: the master leads, then the metas the descriptor's `order` hoists,
-  -- then the rest in Blizzard order. (Custom rows are placed by tabGroups like any other setting.)
+  -- The Graphics Quality group: the master leads, then the metas the descriptor's `metaOrder`
+  -- hoists, then the rest in Blizzard order. (Custom rows are placed by tabGroups like any setting.)
   local function AddQualityGroup()
     local seen, order = {}, {}
     if base[MASTER_CVAR] then order[#order + 1] = MASTER_CVAR; seen[MASTER_CVAR] = true end
-    if d and d.order then
-      for _, cvar in ipairs(d.order) do
+    if d and d.metaOrder then
+      for _, cvar in ipairs(d.metaOrder) do
         if base[cvar] and not seen[cvar] then order[#order + 1] = cvar; seen[cvar] = true end
       end
     end
@@ -1918,12 +1923,10 @@ local function BuildRows(content)
     end
   end
 
-  -- Both tabs are laid out from tabGroups, in the listed order. An entry is { header?, cvars?,
-  -- quality? }: its header renders lazily (only once a setting under it is present), then the
-  -- listed CVars, then -- if quality = true -- the Graphics Quality group (master + metas) under
-  -- the same header. So an entry can be just settings, just the Quality group (headerless), or a
-  -- header that fronts both (the bigger Graphics Quality section). The fixed top-band settings
-  -- (BuildTopSection) are not listed here.
+  -- Each tab is a flat, ordered list rendered top to bottom. An item is one of: a CVar name
+  -- (string); a header { header = "KEY", info? } -- shown lazily, only once a setting or the
+  -- quality group actually appears under it; or { quality = true }, the Graphics Quality group
+  -- (master + metas). The fixed top-band settings (BuildTopSection) are not listed here.
   if d and d.tabGroups then
     local indices = {}
     for tabIndex in pairs(d.tabGroups) do indices[#indices + 1] = tabIndex end
@@ -1931,19 +1934,22 @@ local function BuildRows(content)
     for _, tabIndex in ipairs(indices) do
       currentTab = tabIndex
       local tabHasHeader = false  -- the tab's first header gets no divider above it
-      for _, e in ipairs(d.tabGroups[tabIndex]) do
-        local headerShown = false
-        local function ShowHeader()
-          if e.header and not headerShown then
-            AddHeaderRow(e.header, e.info, tabHasHeader)
-            headerShown, tabHasHeader = true, true
-          end
+      local pendingHeader  -- a header waits here until a setting / the quality group appears under it
+      local function FlushHeader()
+        if pendingHeader then
+          AddHeaderRow(pendingHeader.header, pendingHeader.info, tabHasHeader)
+          tabHasHeader, pendingHeader = true, nil
         end
-        for _, cvar in ipairs(e.cvars or {}) do
-          local s = base[cvar]
-          if s and not (s.gate and not s.gate()) then ShowHeader(); AddSettingRow(s) end
+      end
+      for _, item in ipairs(d.tabGroups[tabIndex]) do
+        if type(item) == "string" then
+          local s = base[item]
+          if s and not (s.gate and not s.gate()) then FlushHeader(); AddSettingRow(s) end
+        elseif item.quality then
+          FlushHeader(); AddQualityGroup()
+        elseif item.header then
+          pendingHeader = item  -- a new header supersedes an unflushed (empty) one
         end
-        if e.quality then ShowHeader(); AddQualityGroup() end
       end
     end
   end
@@ -2164,7 +2170,7 @@ local function BuildFrame()
   content.scrollable = true
   content.scrollBox = scrollBox
   -- Which tab's rows Relayout shows. Restored from the SavedVariable (the tab buttons save it
-  -- below); first-ever open lands on General and Static (tab 1).
+  -- below); first-ever open lands on "Static" (tab 1).
   content.activeTab = (Graphit_config and Graphit_config.activeTab) or 1
   f.content = content  -- so the saved-pending loader can re-sync rows after applying
   BuildRows(content)
@@ -2205,10 +2211,10 @@ local function BuildFrame()
     tab.Text:SetText(text)
     return tab  -- width comes from the BOTTOMLEFT/BOTTOMRIGHT anchors below
   end
-  -- Left tab is index 1 (General and Static), right tab is index 2 (Performance and Quality),
+  -- Left tab is index 1, right tab is index 2,
   -- matching tabGroups; the indices are the visual left-to-right order.
-  local tab1 = MakeTab("General and Static")
-  local tab2 = MakeTab("Performance and Quality")
+  local tab1 = MakeTab("Static")
+  local tab2 = MakeTab("Dynamic")
   local tab_y = 6
   local tab_gap = 5
   tab1:SetPoint("BOTTOMLEFT",  scrollBox, "TOPLEFT",  0,                 tab_y)
@@ -2262,20 +2268,20 @@ local function BuildFrame()
 
         local opts = {}
         local raw = (base.control.optionsFunc and base.control.optionsFunc()) or base.control.options or {}
-        for _, o in ipairs(raw) do opts[#opts + 1] = { value = o.value, text = L(o.label) } end
+        for _, o in ipairs(raw) do opts[#opts + 1] = { value = o.value, text = Str(o.label) } end
 
         -- No label, so the control carries the tooltip: name + body + option detail.
         -- CreateDropdown appends the disabledTooltip ("locked") when Resolution is maximised.
         local detail = OptionDetailFunc(base)
         local function controlTooltip(tip)
-          GameTooltip_SetTitle(tip, L(base.name))
+          GameTooltip_SetTitle(tip, Str(base.name))
           local body = base.tooltip and _G[base.tooltip]
           if body then GameTooltip_AddNormalLine(tip, body, true) end
           if detail then detail(tip) end
         end
 
         CreateDropdown(row, binding, opts, base.control.betterIsLower, base.enableWhen,
-                       base.disabledTooltip and L(base.disabledTooltip), controlTooltip)
+                       base.disabledTooltip and Str(base.disabledTooltip), controlTooltip)
         row.Refresh()  -- initial render (list rows get this via OnShow's RefreshAllRows)
         content.topRows[#content.topRows + 1] = row
         y = y - (TOP_ROW_HEIGHT + TOP_ROW_GAP)

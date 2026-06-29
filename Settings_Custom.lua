@@ -18,26 +18,26 @@ local _, Graphit = ...
 -- moving settings to another tab, reordering them, overriding them, and adding a custom
 -- setting never interfere:
 --
---   tabGroups   The full content of every tab, regrouped under our own headers out of Blizzard's
---               order. Keyed by tab index (1 = left = "General and Static", 2 = right =
---               "Performance and Quality"); each value is an ordered list of entries. An entry is
---               either { quality = true } (the Graphics Quality group: the master and its metas)
---               or { header, cvars } (a category: its header -- a global-string key or a literal
---               -- then the listed CVars, in this order). The two can combine in one entry (a
---               header fronting both some CVars and the quality group). An optional info = "..."
---               adds a right-aligned info "i" to the header, whose hover shows that text. A
---               category header shows only when at least one of its settings is present. The
---               fixed top-band settings (Monitor,
---               Display Mode, Resolution) are not listed. Anything left out is appended to the
---               catch-all (Performance) tab, so a new setting never vanishes.
+--   tabGroups   The full content of every tab, regrouped out of Blizzard's order. Keyed by tab
+--               index (1 = left = "Static", 2 = right = "Dynamic"); each value is a FLAT, ordered
+--               list rendered top to bottom. An item is one of:
+--                 "cvar"               a setting, by CVar name (a custom one too).
+--                 { header = "KEY" }   a section header (a global-string key or a literal). Shown
+--                                      lazily -- only once a setting or the quality group appears
+--                                      under it -- with an optional info = "..." that adds a
+--                                      right-aligned "i" whose hover shows that text.
+--                 { quality = true }   the Graphics Quality group: the master and its metas.
+--               The fixed top-band settings (Monitor, Display Mode, Resolution) are not listed.
+--               Anything left out is appended to the catch-all tab, so a new setting never vanishes.
 --                   tabGroups = {
---                     [1] = { { header = "Frame Rate", cvars = { "maxFPS", "targetFPS" } } },
---                     [2] = { { quality = true }, { header = "Antialiasing", cvars = { ... } } },
+--                     [1] = { { header = "Frame Rate" }, "maxFPS", "targetFPS" },
+--                     [2] = { { quality = true }, { header = "Antialiasing" }, "MSAAQuality" },
 --                   },
 --
---   order       A list of Layer-2 CVars to show first, in this order; the rest
---               keep Blizzard's order after them.
---                   order = { "graphicsViewDistance", "graphicsShadowQuality" },
+--   metaOrder   The order of the Layer-2 metas under the Graphics Quality master: the listed
+--               ones lead (in this order), the rest keep Blizzard's order after them. (The L3
+--               counterpart is childOrder.)
+--                   metaOrder = { "graphicsViewDistance", "graphicsShadowQuality" },
 --
 --   childOrder  Per meta, a list of child CVars to show first; the rest follow
 --               alphabetically.
@@ -82,20 +82,23 @@ local _, Graphit = ...
 --                                  Layer-3 child it is the only source (none shows
 --                                  otherwise). Literal text, or a global-string key
 --                                  (resolved at display time).
+--                 name = "..."     rename the row, overriding Blizzard's. Literal text or a
+--                                  global-string key, resolved through Str like any other name.
 --                   overrides = {
 --                     ["horizonClip"]           = { hidden = true },
 --                     ["lodObjectMinSize"]      = { control = { kind = "slider", min = 0, max = 50 } },
 --                     ["cameraFov"]             = { control = { step = 1 } },  -- finer step; keeps the runtime min/max
 --                     ["graphicsShadowQuality"] = { control = { kind = "dropdown" } },  -- keep Blizzard's labelled dropdown
+--                     ["graphicsQuality"]       = { name = "Overall Quality" },  -- rename the master slider
 --                     ["worldBaseMip"]          = { deferApply = true, tooltip = "Texture streaming base mip; lower is sharper." },
 --                   },
 --
 --   custom      A list of settings defined entirely here -- a CVar with no Blizzard
 --               panel control and no dump entry. Each entry is a full row: cvar, name,
 --               a control (typically a checkbox for a 0/1 CVar), and an optional
---               tooltip (literal text or a global-string key). They render as plain
---               rows after the Blizzard list, in the order listed (unless `order`
---               hoists one above).
+--               tooltip (literal text or a global-string key). List a custom CVar in a
+--               tabGroups entry to place it like any other setting; one left out falls to
+--               the catch-all tab.
 --                   custom = {
 --                     { cvar = "ResampleAlwaysSharpen", name = "Always Sharpen",
 --                       control = { kind = "checkbox" }, tooltip = "..." },
@@ -104,75 +107,109 @@ local _, Graphit = ...
 
 Graphit.descriptor = {
 
-  -- Both tabs' content, grouped under our own headers. First draft -- reorder/regroup freely.
+  -- Both tabs' content, in our own order. Each tab is a flat list: a CVar name (string), a header
+  -- { header = "KEY", info? }, or { quality = true }. Rendered top to bottom. Reorder/regroup freely.
   tabGroups = {
 
-    -- General and Static (left): set-once display, frame-rate and system settings. These the user
+    -- "Static" (left): set-once display, frame-rate and system settings. These the user
     -- sets by hand; the per-zone presets will leave them alone.
     [1] = {
       {
-        header = "Graphics Device",
-        cvars = { "gxAdapter", "gxapi", "LowLatencyMode", "NotchedDisplayMode" }
+        header = "Graphics Device"
       },
+      "gxAdapter",
+      "gxapi",
+      "LowLatencyMode",
+      "NotchedDisplayMode",
+
       {
-        header = "Frame Rate",
-        cvars = {
-          "maxFPS",
-          "maxFPSBk",
-          "targetFPS",
-          "gxMaxFrameLatency",
-          "vsync", 
-        }
+        header = "Frame Rate"
       },
+      "maxFPS",
+      "maxFPSBk",
+      "targetFPS",
+      "gxMaxFrameLatency",
+      "vsync",
+
       {
         header = "Miscellaneous",
-        info = "This section holds settings you typically don't want or cannot change dynamically.",
-        cvars = {
-          "uiscale",
-          "cameraFov",
-          "physicsLevel"
-        }
+        info = "This section holds settings you typically don't want or cannot change dynamically."
       },
+      "uiscale",
+      "cameraFov", "physicsLevel",
+
       {
-        header = "Color",
-        cvars = {
-          "Contrast",
-          "Brightness",
-          "Gamma",
-        }
+        header = "Color"
       },
+      "Contrast",
+      "Brightness",
+      "Gamma",
+
       {
         header = "COMPATIBILITY_SETTINGS",
-        info = "You should keep all of these checkboxes checked, unless you are facing the problems decribed in their respective tooltips.",
-        cvars = {
-          "GxCompatOptionalGpuFeatures",
-          "GxCompatAsyncShaderCompilation",
-          "GxCompatCommandListMultiThreading",
-          "GxCompatWorkSubmitOptimizations",
-        }
+        info = "You should keep all of these checkboxes checked, unless you are facing the problems decribed in their respective tooltips."
       },
+      "GxCompatOptionalGpuFeatures",
+      "GxCompatAsyncShaderCompilation",
+      "GxCompatCommandListMultiThreading",
+      "GxCompatWorkSubmitOptimizations",
+
     },
 
-    -- Performance and Quality (right): the Graphics Quality preset and everything that trades
+    -- "Dynamic" (right): the Graphics Quality preset and everything that trades
     -- frames for fidelity -- what the per-zone presets will drive.
     [2] = {
       {
         header = "Render Scale and Sharpening",
-        info = "Render at a lower resolution and upscale, then optionally sharpen the result -- a big performance lever with a controllable softness/sharpness trade-off.",
-        cvars = {
-          "RenderScale",
-          "ResampleQuality",
-          "ResampleSharpness",
-          "ResampleAlwaysSharpen",
-        }
-      },      -- Multisample AA and Variable Rate Shading together: VRS is shading, and Multisample AA
-      -- overrules it, so they share a group.
-      { header = "Antialiasing and Shading",    cvars = { "ffxAntiAliasingMode", "MSAAQuality", "msaaAlphaTest", "vrsValar" } },
-      -- The big Graphics Quality section: Texture Filtering and Ray Traced Shadows, then the
-      -- expandable Graphics Quality master + its metas (quality = true), all under one header.
-      { header = "Graphics Quality", cvars = { "textureFilteringMode", "shadowrt" }, quality = true },
+        info = "Render at a lower resolution and upscale, then optionally sharpen the result - a big performance lever with a controllable softness/sharpness trade-off."
+      },
+      "RenderScale",
+      "ResampleQuality",
+      "ResampleSharpness",
+      "ResampleAlwaysSharpen",
+
+      {
+        header = "Antialiasing and Shading"
+      },
+      "ffxAntiAliasingMode",
+      "MSAAQuality",
+      "msaaAlphaTest",
+      "vrsValar",
+
+      {
+        header = "Graphics Quality"
+      },
+      "shadowrt",
+      { quality = true },
+      "textureFilteringMode",
+
     },
   },
+
+
+  metaOrder = {
+
+    "graphicsSSAO",
+    "graphicsShadowQuality",
+    
+    "graphicsViewDistance",
+    "graphicsEnvironmentDetail",
+    "graphicsGroundClutter",
+
+    "graphicsLiquidDetail",
+
+    "graphicsOutlineMode",
+    
+    "graphicsComputeEffects",
+    "graphicsDepthEffects",
+    "graphicsSpellDensity",
+    "graphicsParticleDensity",
+
+    "graphicsProjectedTextures",
+    "graphicsTextureResolution",
+
+  },
+
 
   childOrder = {
     ["graphicsEnvironmentDetail"] = { "doodadLodScale", "lodObjectFadeScale", "lodObjectCullSize", "lodObjectMinSize" },
@@ -275,6 +312,11 @@ Graphit.descriptor = {
 
     -- TODO (next): Ray Traced Shadows need at least Shadow Quality "Good"
     -- (shadowMode >= 2, shadowNumCascades >= 2) or they have no effect.
+
+
+    -- Renaming the "Graphics Quality" slider, because it is already in our "Graphics Quality" section.
+    ["graphicsQuality"] = { name = "Blizzard Presets" },
+
 
 
   },
