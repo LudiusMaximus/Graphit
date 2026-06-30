@@ -14,16 +14,16 @@ local _, Graphit = ...
 -- locale at display time via _G[key]. The patch-day routine lives in DumpSettings.lua.
 --
 -- Our deviations from this mirror live alongside it, so they stay recognisable as ours:
--- declarative ones (reordering, control swaps, Layer-3 child overrides) in Settings_Custom.lua,
+-- declarative ones (reordering, control swaps, tertiary overrides) in Settings_Custom.lua,
 -- behavioural ones (enableWhen, value transforms, smart tooltips) in Settings_Logic.lua. A
--- meta's Layer-3 child CVars and their per-level values come from Settings_Dump.lua.
+-- secondary's tertiary CVars and their per-level values come from Settings_Dump.lua.
 -- =====================================================================
 
 Graphit.layer2 = {
 
-  { -- Graphics Quality (Layer-1 master: drives every meta below it; MainFrame renders
-    -- it as the leading row of the Graphics Quality section and writes each meta
-    -- directly, since the master does not cascade via SetCVar). We keep Blizzard's
+  { -- Graphics Quality (preset: drives every secondary below it; MainFrame renders
+    -- it as the leading row of the Graphics Quality section and writes each secondary
+    -- directly, since the preset does not cascade via SetCVar). We keep Blizzard's
     -- GRAPHICS_QUALITY label: its BASE_GRAPHICS_QUALITY only existed to tell this apart
     -- from Raid Graphics, and Graphit's per-scenario profiles make that distinction
     -- unnecessary.
@@ -76,7 +76,7 @@ Graphit.layer2 = {
     } },
   },
 
-  { -- SSAO (single child: SSAO; direct control)
+  { -- SSAO (single tertiary: SSAO; direct control)
     cvar    = "graphicsSSAO",
     name    = "SSAO_LABEL",
     tooltip = "OPTION_TOOLTIP_SSAO",
@@ -114,7 +114,7 @@ Graphit.layer2 = {
     } },
   },
 
-  { -- Outline Mode (single child: OutlineEngineMode; direct control)
+  { -- Outline Mode (single tertiary: OutlineEngineMode; direct control)
     cvar    = "graphicsOutlineMode",
     name    = "OUTLINE_MODE",
     tooltip = "OPTION_TOOLTIP_OUTLINE_MODE",
@@ -148,7 +148,7 @@ Graphit.layer2 = {
     } },
   },
 
-  { -- Projected Textures (single child: projectedTextures; direct control)
+  { -- Projected Textures (single tertiary: projectedTextures; direct control)
     cvar    = "graphicsProjectedTextures",
     name    = "PROJECTED_TEXTURES",
     tooltip = "OPTION_TOOLTIP_PROJECTED_TEXTURES",
@@ -183,13 +183,13 @@ Graphit.layer2 = {
 
 
 -- =====================================================================
--- Layer-1 layout: the top-level graphics sections in Blizzard's display order,
+-- layer1 layout: the top-level graphics sections in Blizzard's display order,
 -- mirroring how the Settings panel groups the options. Each entry is one of:
 --   { header = "KEY" }   a section-header row (KEY is a global-string key; an
 --                        optional `gate` hides the header when its block is absent).
---   { quality = true }   the Graphics Quality group -- the master preset and its
---                        meta rows from Graphit.layer2, rendered as before.
---   a setting            a standalone Layer-1 row. Common fields: cvar, name, tooltip,
+--   { quality = true }   the Graphics Quality group -- the preset and its
+--                        secondary rows from Graphit.layer2, rendered as before.
+--   a setting            a standalone row. Common fields: cvar, name, tooltip,
 --                        commit, gate. The `control` is `{ kind, ... }`; beyond a static
 --                        list it may carry optionsFunc (runtime / validated options),
 --                        minFunc / maxFunc (runtime slider range), or values (an
@@ -388,8 +388,8 @@ Graphit.layer1 = {
     end } },
   -- Antialiasing: Blizzard's "Antialiasing" parent dropdown (None / Image-Based /
   -- Multisample / Advanced) carries no state -- it only derives from, and gates, the two
-  -- child controls (its "Advanced" does nothing; pick it, leave a child at None, and it
-  -- collapses back). So we drop the parent and expose the children directly as L1 rows.
+  -- tertiary controls (its "Advanced" does nothing; pick it, leave a tertiary at None, and it
+  -- collapses back). So we drop the parent and expose the tertiaries directly as primary rows.
   -- CMAA / CMAA2 are added only where the hardware supports them (AntiAliasingSupported
   -- returns fxaa, cmaa, cmaa2 booleans -- no reason string, so they are simply omitted).
   { cvar = "ffxAntiAliasingMode", name = "FXAA_CMAA_LABEL", tooltip = "OPTION_TOOLTIP_ANTIALIASING_IB", commit = "live",
@@ -442,8 +442,8 @@ Graphit.layer1 = {
       minFunc = function() local _, lo = GetCameraFOVDefaults(); return lo end,
       maxFunc = function() local _, _, hi = GetCameraFOVDefaults(); return hi end } },
 
-  -- Graphics Quality: the master leads its own section (no header band -- its row is
-  -- already labelled "Graphics Quality"), with its meta rows from Graphit.layer2.
+  -- Graphics Quality: the preset leads its own section (no header band -- its row is
+  -- already labelled "Graphics Quality"), with its secondary rows from Graphit.layer2.
   { quality = true },
 
   -- Advanced

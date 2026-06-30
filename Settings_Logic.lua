@@ -13,7 +13,7 @@ local _, Graphit = ...
 -- setting can carry works here: get / set value transforms, enableWhen (grey the control while a
 -- precondition is unmet) with an optional disabledTooltip, optionDisabled(value) (a per-option
 -- red reason in the tooltip), and the trailing tooltip notes optionsHint (always, normal) and
--- optionsWarning (conditional, warning colour). A Layer-3 child entry may carry the notes too.
+-- optionsWarning (conditional, warning colour). A tertiary entry may carry the notes too.
 --
 -- User-facing strings name other settings / options via numbered %1$s... placeholders fed from
 -- the game's own localised globals (so a translation can reorder them and they always match the
@@ -21,19 +21,19 @@ local _, Graphit = ...
 -- =====================================================================
 
 -- shadowMode 0 = no shadows at all, which is the only state that fully disables Ray Traced
--- Shadows. Keyed on the child CVar, not the Shadow Quality preset, so it reacts to a direct
--- shadowMode child edit as well as a preset change (the preset CVar would not move for that).
+-- Shadows. Keyed on the tertiary CVar, not the Shadow Quality preset, so it reacts to a direct
+-- shadowMode tertiary edit as well as a preset change (the preset CVar would not move for that).
 local function ShadowMode()
   return tonumber((C_CVar and C_CVar.GetCVar("shadowMode")) or "0") or 0
 end
 
 -- Ray Traced Shadows enabled (any non-Disabled level). While on, the traditional shadow-shaping
--- children below have no effect.
+-- tertiaries below have no effect.
 local function RayTracedShadowsOn()
   return (tonumber((C_CVar and C_CVar.GetCVar("shadowrt")) or "0") or 0) > 0
 end
 
--- A warning for a Shadow Quality child that the engine ignores while Ray Traced Shadows is on.
+-- A warning for a Shadow Quality tertiary that the engine ignores while Ray Traced Shadows is on.
 local function IgnoredWhileRayTraced()
   if RayTracedShadowsOn() then
     return "Only takes effect while \"%1$s\" is disabled.", RT_SHADOW_QUALITY
@@ -137,7 +137,7 @@ Graphit.logic = {
   -- SSAO needs shadow rendering: when Shadow Quality is Low (shadowMode 0) the engine turns it off.
   -- Same gate as Ray Traced Shadows -- grey the dropdown and show the effective Disabled, the stored
   -- level kept so it returns once shadows are back; a red warning names the cause. (graphicsSSAO is
-  -- a single-child meta, so it binds like a plain setting -- enableWhen / get / notes all apply.)
+  -- a single-tertiary secondary, so it binds like a plain setting -- enableWhen / get / notes all apply.)
   ["graphicsSSAO"] = {
     enableWhen = function() return ShadowMode() > 0 end,
     get = function(raw)
@@ -152,7 +152,7 @@ Graphit.logic = {
     end,
   },
 
-  -- Shadow Quality children the engine ignores while Ray Traced Shadows is on: warn (do not
+  -- Shadow Quality tertiaries the engine ignores while Ray Traced Shadows is on: warn (do not
   -- disable -- the user may still set them for when they turn Ray Traced Shadows off).
   ["shadowSoft"]        = { optionsWarning = IgnoredWhileRayTraced },
   ["shadowTextureSize"] = { optionsWarning = IgnoredWhileRayTraced },

@@ -8,20 +8,20 @@ local _, Graphit = ...
 -- commands), and excluding one file from a release would mean keeping a
 -- .pkgmeta ignore and the TOC in sync, which is not worth it.
 --
--- It builds Settings_Dump.lua. For each Blizzard "meta" graphics setting
--- (Layer 2, e.g. graphicsViewDistance) it discovers which raw engine CVars
--- (Layer 3, e.g. farclip) that meta drives, and the value each takes at every
+-- It builds Settings_Dump.lua. For each Blizzard "secondary" graphics setting
+-- (a secondary, e.g. graphicsViewDistance) it discovers which raw engine CVars
+-- (a tertiary, e.g. farclip) that secondary drives, and the value each takes at every
 -- level. The client computes this mapping in C; it is not in wow-ui-source. So
--- we sweep the meta CVar through its levels and diff the full CVar table at each
--- step, one meta at a time, so a changed raw CVar is unambiguously a child of
--- that meta.
+-- we sweep the secondary CVar through its levels and diff the full CVar table at each
+-- step, one secondary at a time, so a changed raw CVar is unambiguously a tertiary of
+-- that secondary.
 --
--- The master setting graphicsQuality (Layer 1) does NOT cascade via SetCVar
+-- The preset setting graphicsQuality (the preset) does NOT cascade via SetCVar
 -- (Blizzard maps it in Lua), so for it we query the C function
 -- GetGraphicsCVarValueForQualityLevel directly. See RunQualityMatrix.
 --
 -- Commands:
---   /graphitdump <metaCVar> [maxLevel]   sweep one setting -> window
+--   /graphitdump <secondaryCvar> [maxLevel]   sweep one setting -> window
 --   /graphitdumpall                      sweep every setting -> a complete,
 --                                        paste-ready Settings_Dump.lua
 --
@@ -41,7 +41,7 @@ local _, Graphit = ...
 --   check each initializer for behaviour beyond a plain control and mirror (or consciously
 --   skip) it -- the easy-to-miss kind:
 --     - per-option tooltip / warning -> container:Add(value, label, TOOLTIP) or .warning
---     - recommended default -> AddRecommended (auto for quality metas)
+--     - recommended default -> AddRecommended (auto for quality secondaries)
 --     - reversed slider -> getValueReversed / (max - value) proxy -> betterIsLower
 --     - custom label format -> options:SetLabelFormatter -> control.format
 --     - parent gate -> SetParentInitializer + IsModifiable -> enableWhen
@@ -51,37 +51,37 @@ local _, Graphit = ...
 --   Deliberately NOT mirrored (do not re-flag as "missing"):
 --     - Raid Graphics (RaidSettingsEnabled, PROXY_RAID_GRAPHICS_QUALITY and its advanced
 --       table) -- Graphit's per-scenario profiles supersede a raid-only preset.
---     - The "Antialiasing" parent dropdown -- it only gates its two children, so we drop it
---       and expose Image-Based / Multisample (+ the alpha-test checkbox) directly as L1 rows.
+--     - The "Antialiasing" parent dropdown -- it only gates its two tertiaries, so we drop it
+--       and expose Image-Based / Multisample (+ the alpha-test checkbox) directly as primary rows.
 --     - The "New" feature badge (IsNewSettingInCurrentVersion) -- keyed to Blizzard's proxy
 --       variables, which we do not register.
 --
 --   File: Blizzard_Settings_Shared/Mainline/GraphicsOverrides.lua
---     CreateAdvancedSettingsTable() lists every Layer-2 meta CVar
+--     CreateAdvancedSettingsTable() lists every secondary CVar
 --     (graphicsQuality, graphicsShadowQuality, ... graphicsGroundClutter)
 --     in the order Blizzard displays them.
---       -> Reconcile with META_SETTINGS below: add / remove / rename /
+--       -> Reconcile with SECONDARY_SETTINGS below: add / remove / rename /
 --          reorder to match. Note conditional entries (e.g. graphicsSpellDensity
 --          is gated by C_VideoOptions.IsSpellVisualDensitySystemSupported()).
 --
 --   File: Blizzard_SettingsDefinitions_Shared/Graphics.lua
 --     - Option-builder functions (GetShadowQualityOptions,
 --       GetLiquidDetailOptions, ...) add one entry per selectable value; the
---       highest value is that meta's max level. The three slider metas
+--       highest value is that secondary's max level. The three slider secondaries
 --       (graphicsViewDistance / EnvironmentDetail / GroundClutter) use the
 --       0-9 slider (search `minValue, maxValue, step = 0, 9, 1`).
---       -> Update the maxLevel in META_SETTINGS below for any meta whose
+--       -> Update the maxLevel in SECONDARY_SETTINGS below for any secondary whose
 --          value count changed.
 --     - SettingsAdvancedQualityControlsMixin:Init and the OnGCChanged path
---       confirm the master still cascades through
+--       confirm the preset still cascades through
 --       GetGraphicsCVarValueForQualityLevel(cvar, level, raid). If Blizzard
 --       changes that mechanism, update RunQualityMatrix.
 --     - Settings_Source.lua is transcribed by hand from this file the same patch (a
 --       separate file from this tool). It holds TWO tables:
---         * Graphit.layer2 -- the Graphics Quality group: the master preset and its
---           meta settings (names, tooltips, controls, option enums, gates). A
+--         * Graphit.layer2 -- the Graphics Quality group: the preset and its
+--           secondary settings (names, tooltips, controls, option enums, gates). A
 --           setting's tooltip is the OPTION_TOOLTIP_* key passed to its control
---           builder; copy it into `tooltip` (a meta without one shows no tooltip).
+--           builder; copy it into `tooltip` (a secondary without one shows no tooltip).
 --         * Graphit.layer1 -- the top-level section LAYOUT, mirroring how Graphics.lua's
 --           Register() lays the category out: section headers
 --           (CreateSettingsListSectionHeaderInitializer -> { header = "KEY" }; the
@@ -147,7 +147,7 @@ local _, Graphit = ...
 --           are no longer dead data: MainFrame appends them to the setting's hover tooltip,
 --           mirroring Blizzard's control tooltip (CreateOptionsInitTooltip). The green
 --           "Recommended" marker needs no transcription; it is derived at runtime (the
---           option equal to the CVar default) for every quality meta, as AddRecommended does.
+--           option equal to the CVar default) for every quality secondary, as AddRecommended does.
 --
 --           Two gotchas worth remembering when transcribing:
 --             - Helpers called inside Graphics.lua may be `local function`s there
@@ -161,35 +161,35 @@ local _, Graphit = ...
 --
 -- (2) DUMP THE VALUES
 --
---   /reload, then /graphitdumpall. Each meta flickers through its levels
---   (~30-40s total) and restores its original value. If a meta reports
---   "no child CVars changed", the SetCVar cascade no longer works for it --
+--   /reload, then /graphitdumpall. Each secondary flickers through its levels
+--   (~30-40s total) and restores its original value. If a secondary reports
+--   "no tertiary CVars changed", the SetCVar cascade no longer works for it --
 --   investigate in source before trusting the output. Select All -> copy ->
 --   replace the ENTIRE contents of Settings_Dump.lua. `git diff` it: the
---   build stamp always changes; added / removed child CVars and retuned values
+--   build stamp always changes; added / removed tertiary CVars and retuned values
 --   are the real patch changes.
 --
---   There is no third step. Layer-3 children default to a slider in MainFrame, and
---   any deviations live in Settings_Custom.lua, so a new child CVar appears on its
+--   There is no third step. tertiaries default to a slider in MainFrame, and
+--   any deviations live in Settings_Custom.lua, so a new tertiary CVar appears on its
 --   own; revisit the customized overlay only to reorder or
 --   re-style it.
 -- =====================================================================
 
 
--- The Layer-1 master setting (the overall "Graphics Quality" 0-9 slider).
+-- The preset setting (the overall "Graphics Quality" 0-9 slider).
 -- Handled on its own path: it does NOT cascade via SetCVar, so it is not
--- swept like the metas below; RunQualityMatrix queries it through
+-- swept like the secondaries below; RunQualityMatrix queries it through
 -- GetGraphicsCVarValueForQualityLevel instead.
-local MASTER_CVAR = "graphicsQuality"
+local PRESET_CVAR = "graphicsQuality"
 local MASTER_MAX_LEVEL = 9
 
 -- =====================================================================
--- THE patch-day table. Every Layer-2 meta CVar (each swept via SetCVar),
+-- THE patch-day table. Every secondary CVar (each swept via SetCVar),
 -- in Blizzard's display order, with its max level (0-based, inclusive).
 -- Reconcile with the Blizzard source after a client patch (see header).
 -- This is the single source of truth; the code iterates it directly.
 -- =====================================================================
-local META_SETTINGS = {
+local SECONDARY_SETTINGS = {
   { cvar = "graphicsViewDistance",      maxLevel = 9 },
   { cvar = "graphicsShadowQuality",     maxLevel = 5 },
   { cvar = "graphicsLiquidDetail",      maxLevel = 3 },
@@ -205,20 +205,20 @@ local META_SETTINGS = {
   { cvar = "graphicsGroundClutter",     maxLevel = 9 },
 }
 
--- Scope note: only MULTI-child Layer-2 settings produce generated data. The
+-- Scope note: only MULTI-tertiary secondaries produce generated data. The
 -- other Blizzard graphics settings -- the display / advanced / compat blocks
 -- (vsync, textureFilteringMode, shadowrt, ResampleQuality, vrsValar,
 -- LowLatencyMode, antialiasing, gamma, render scale, FPS caps, ...) -- were
 -- swept once and found to be direct single-CVar controls (no cascade), so they
 -- live in Graphit.layer1 in Settings_Source.lua, not here; no need to re-sweep them
--- each patch. Single-child metas are likewise omitted by the dump (see
--- BuildResult): a lone child is a 1:1 alias with nothing to expand.
+-- each patch. Single-tertiary secondaries are likewise omitted by the dump (see
+-- BuildResult): a lone tertiary is a 1:1 alias with nothing to expand.
 
--- Max level for a meta CVar by name, for the single-CVar /graphitdump
+-- Max level for a secondary CVar by name, for the single-CVar /graphitdump
 -- command (unknown CVars fall back to 9). /graphitdumpall does not need
--- this -- it reads each entry's maxLevel straight from META_SETTINGS.
+-- this -- it reads each entry's maxLevel straight from SECONDARY_SETTINGS.
 local function MaxLevelFor(cvar)
-  for _, entry in ipairs(META_SETTINGS) do
+  for _, entry in ipairs(SECONDARY_SETTINGS) do
     if entry.cvar == cvar then return entry.maxLevel end
   end
   return 9
@@ -230,7 +230,7 @@ end
 -- ---------------------------------------------------------------------
 -- Tunables
 -- ---------------------------------------------------------------------
--- Seconds to wait after writing a meta CVar before snapshotting, so the
+-- Seconds to wait after writing a secondary CVar before snapshotting, so the
 -- engine has cascaded the change to its raw CVars.
 local SETTLE_DELAY = 0.20
 -- Seconds between sweep steps.
@@ -336,7 +336,7 @@ local batchMode = false
 
 
 -- ---------------------------------------------------------------------
--- Output helpers shared by the single-CVar and master dumps.
+-- Output helpers shared by the single-CVar and preset dumps.
 -- ---------------------------------------------------------------------
 
 -- Print a status line with the standard colored "Graphit dump:" prefix.
@@ -404,69 +404,69 @@ end
 -- ---------------------------------------------------------------------
 -- Build and show the result once all snapshots are gathered.
 -- ---------------------------------------------------------------------
-local function BuildResult(meta, maxLevel, names, snapshots)
-  -- A CVar is a child of `meta` if its value was not constant across the
+local function BuildResult(secondary, maxLevel, names, snapshots)
+  -- A CVar is a tertiary of `secondary` if its value was not constant across the
   -- whole sweep.
-  local children = {}
+  local tertiaries = {}
   for _, name in ipairs(names) do
-    if name ~= meta then
+    if name ~= secondary then
       local base = snapshots[0][name]
       for level = 1, maxLevel do
         if snapshots[level][name] ~= base then
-          children[#children + 1] = name
+          tertiaries[#tertiaries + 1] = name
           break
         end
       end
     end
   end
-  table.sort(children)
+  table.sort(tertiaries)
 
   local lines = {}
   local function add(s) lines[#lines + 1] = s end
 
   if not batchMode then
-    add(StandaloneHeader(meta, maxLevel))
+    add(StandaloneHeader(secondary, maxLevel))
   end
-  if #children == 0 then
-    add("-- WARNING: no child CVars changed during the sweep.")
-    add("-- Setting this meta CVar via SetCVar may not cascade immediately")
+  if #tertiaries == 0 then
+    add("-- WARNING: no tertiary CVars changed during the sweep.")
+    add("-- Setting this secondary CVar via SetCVar may not cascade immediately")
     add("-- (might need an apply/restart); another trigger may be required.")
     AppendOutput(table.concat(lines, "\n"))
-    Report("ff8800", "no children changed for %s - see window.", meta)
+    Report("ff8800", "no tertiaries changed for %s - see window.", secondary)
     return
   end
 
-  if #children == 1 then
-    -- A lone child means the meta is a 1:1 alias of that one raw CVar, so
-    -- there is nothing to expand; Settings_Source.lua exposes the meta directly.
-    add(("-- %s: single child (%s); direct control, not expanded."):format(meta, children[1]))
+  if #tertiaries == 1 then
+    -- A lone tertiary means the secondary is a 1:1 alias of that one raw CVar, so
+    -- there is nothing to expand; Settings_Source.lua exposes the secondary directly.
+    add(("-- %s: single tertiary (%s); direct control, not expanded."):format(secondary, tertiaries[1]))
     AppendOutput(table.concat(lines, "\n"))
-    Report("66ff66", "%s -> 1 child (%s), omitted as a direct control.", meta, children[1])
+    Report("66ff66", "%s -> 1 tertiary (%s), omitted as a direct control.", secondary, tertiaries[1])
     return
   end
 
-  add(("-- %s: %d child CVar(s): %s"):format(meta, #children, table.concat(children, ", ")))
+  add(("-- %s: %d tertiary CVar(s): %s"):format(secondary, #tertiaries, table.concat(tertiaries, ", ")))
   if not batchMode then
     add("-- min/max = lowest/highest value OBSERVED; not engine limits (widen by hand).")
   end
-  add(("[%q] = {"):format(meta))
-  for _, child in ipairs(children) do
-    add(FormatEntry(child, maxLevel, function(level) return snapshots[level][child] or "" end))
+  add(("[%q] = {"):format(secondary))
+  for _, tertiary in ipairs(tertiaries) do
+    add(FormatEntry(tertiary, maxLevel, function(level) return snapshots[level][tertiary] or "" end))
   end
   add("},")
 
   AppendOutput(table.concat(lines, "\n"))
-  Report("66ff66", "%s -> %d child CVar(s).", meta, #children)
+  Report("66ff66", "%s -> %d tertiary CVar(s).", secondary, #tertiaries)
 end
 
 
 -- ---------------------------------------------------------------------
--- The sweep itself: step the meta CVar 0..maxLevel, snapshotting all
+-- The sweep itself: step the secondary CVar 0..maxLevel, snapshotting all
 -- CVars after a short settle delay at each level, then restore.
 -- ---------------------------------------------------------------------
 local sweepRunning = false
 
-local function RunSweep(meta, maxLevel, onComplete)
+local function RunSweep(secondary, maxLevel, onComplete)
   if sweepRunning then
     Report("ff8800", "a sweep is already running.")
     return
@@ -475,23 +475,23 @@ local function RunSweep(meta, maxLevel, onComplete)
     Report("ff4040", "no CVar enumeration API on this client (ConsoleGetAllCommands / C_Console.GetAllCommands).")
     return
   end
-  if GetCVar(meta) == nil then
-    Report("ff4040", "unknown CVar '%s', skipped.", meta)
+  if GetCVar(secondary) == nil then
+    Report("ff4040", "unknown CVar '%s', skipped.", secondary)
     if onComplete then onComplete() end
     return
   end
 
   sweepRunning = true
   local names = GetAllCVarNames()
-  local original = GetCVar(meta)
+  local original = GetCVar(secondary)
   local snapshots = {}
 
-  Report("66ccff", "sweeping %s (0-%d) over %d CVars...", meta, maxLevel, #names)
+  Report("66ccff", "sweeping %s (0-%d) over %d CVars...", secondary, maxLevel, #names)
 
   local level = 0
   local function StepIn()
-    SetCVar(meta, tostring(level))
-    -- Let the engine cascade the meta change to its raw CVars before we read.
+    SetCVar(secondary, tostring(level))
+    -- Let the engine cascade the secondary change to its raw CVars before we read.
     C_Timer.After(SETTLE_DELAY, function()
       local snap = {}
       for _, name in ipairs(names) do
@@ -503,9 +503,9 @@ local function RunSweep(meta, maxLevel, onComplete)
       if level <= maxLevel then
         C_Timer.After(STEP_DELAY, StepIn)
       else
-        SetCVar(meta, original)  -- restore (re-cascades children back)
+        SetCVar(secondary, original)  -- restore (re-cascades tertiaries back)
         sweepRunning = false
-        BuildResult(meta, maxLevel, names, snapshots)
+        BuildResult(secondary, maxLevel, names, snapshots)
         if onComplete then onComplete() end
       end
     end)
@@ -514,14 +514,14 @@ local function RunSweep(meta, maxLevel, onComplete)
 end
 
 
--- graphicsQuality (the Layer 1 master) does NOT cascade to its meta CVars
+-- graphicsQuality (the preset) does NOT cascade to its secondary CVars
 -- via SetCVar; Blizzard's UI maps it in Lua through
--- GetGraphicsCVarValueForQualityLevel. So for the master we query that
--- function directly: master level -> each meta CVar's level (Layer 1->2).
+-- GetGraphicsCVarValueForQualityLevel. So for the preset we query that
+-- function directly: preset level -> each secondary CVar's level (preset -> secondary).
 local function RunQualityMatrix(onComplete)
   local fn = _G.GetGraphicsCVarValueForQualityLevel
   if not fn then
-    AppendOutput(("-- %s: GetGraphicsCVarValueForQualityLevel unavailable on this client."):format(MASTER_CVAR))
+    AppendOutput(("-- %s: GetGraphicsCVarValueForQualityLevel unavailable on this client."):format(PRESET_CVAR))
     if onComplete then onComplete() end
     return
   end
@@ -531,13 +531,13 @@ local function RunQualityMatrix(onComplete)
   local function add(s) lines[#lines + 1] = s end
 
   if not batchMode then
-    add(StandaloneHeader(MASTER_CVAR, maxLevel))
+    add(StandaloneHeader(PRESET_CVAR, maxLevel))
   end
-  add(("-- %s: master -> meta CVar level (Layer 1->2)"):format(MASTER_CVAR))
-  add(("[%q] = {"):format(MASTER_CVAR))
-  for _, entry in ipairs(META_SETTINGS) do
-    local meta = entry.cvar
-    add(FormatEntry(meta, maxLevel, function(level) return tostring(fn(meta, level, false)) end))
+  add(("-- %s: preset -> secondary CVar level (preset -> secondary)"):format(PRESET_CVAR))
+  add(("[%q] = {"):format(PRESET_CVAR))
+  for _, entry in ipairs(SECONDARY_SETTINGS) do
+    local secondary = entry.cvar
+    add(FormatEntry(secondary, maxLevel, function(level) return tostring(fn(secondary, level, false)) end))
   end
   add("},")
 
@@ -558,16 +558,16 @@ local function FileHeader()
     ("-- WoW %s build %s - %s."):format(version, build, date("%Y-%m-%d")),
     "-- Do not edit by hand; re-run the dump after each client patch.",
     "--",
-    "-- Layout: [metaCVar] = { [childCVar] = { min, max, [level]=value, ... } }",
+    "-- Layout: [secondaryCvar] = { [tertiaryCvar] = { min, max, [level]=value, ... } }",
     "-- Values/min/max are OBSERVED, not engine limits (CVars accept any value).",
-    "-- For graphicsQuality the children are the Layer-2 meta CVars and the",
-    "-- values are their target levels (Layer 1->2).",
+    "-- For graphicsQuality the tertiaries are the secondary CVars and the",
+    "-- values are their target levels (preset -> secondary).",
     "-- ===================================================================",
     "Graphit.layer3 = {",
   }, "\n")
 end
 
--- Sweep every meta in META_SETTINGS one after another, appending each
+-- Sweep every secondary in SECONDARY_SETTINGS one after another, appending each
 -- result so the whole window becomes one complete, paste-ready file.
 local function RunAll()
   if sweepRunning then
@@ -587,11 +587,11 @@ local function RunAll()
   local index = 0
   local function RunNext()
     index = index + 1
-    local entry = META_SETTINGS[index]
+    local entry = SECONDARY_SETTINGS[index]
     if entry then
       RunSweep(entry.cvar, entry.maxLevel, RunNext)
     else
-      -- All Layer-2 metas done; finish with the Layer-1 master, then close.
+      -- All secondaries done; finish with the preset, then close.
       RunQualityMatrix(Finish)
     end
   end
@@ -604,20 +604,20 @@ end
 -- ---------------------------------------------------------------------
 SLASH_GRAPHITDUMP1 = "/graphitdump"
 SlashCmdList["GRAPHITDUMP"] = function(msg)
-  local meta, maxArg = msg:match("^%s*(%S+)%s*(%S*)%s*$")
-  if not meta or meta == "" then
-    Report("66ccff", "usage: /graphitdump <metaCVar> [maxLevel]")
+  local secondary, maxArg = msg:match("^%s*(%S+)%s*(%S*)%s*$")
+  if not secondary or secondary == "" then
+    Report("66ccff", "usage: /graphitdump <secondaryCvar> [maxLevel]")
     print("  e.g. /graphitdump graphicsViewDistance 9")
-    print("  /graphitdumpall          sweep every meta CVar -> Settings_Dump.lua")
+    print("  /graphitdumpall          sweep every secondary CVar -> Settings_Dump.lua")
     return
   end
   ClearOutput()
-  if meta == MASTER_CVAR then
+  if secondary == PRESET_CVAR then
     RunQualityMatrix()
     return
   end
-  local maxLevel = tonumber(maxArg) or MaxLevelFor(meta)
-  RunSweep(meta, maxLevel)
+  local maxLevel = tonumber(maxArg) or MaxLevelFor(secondary)
+  RunSweep(secondary, maxLevel)
 end
 
 SLASH_GRAPHITDUMPALL1 = "/graphitdumpall"
@@ -626,4 +626,8 @@ SlashCmdList["GRAPHITDUMPALL"] = function()
 end
 
 -- Dev convenience: uncomment to auto-open the window on load (this file loads last).
--- Graphit.ToggleMainFrame()
+local startUpFrame = CreateFrame("Frame")
+startUpFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+startUpFrame:SetScript("OnEvent", function()
+  Graphit.ToggleMainFrame()
+end)
