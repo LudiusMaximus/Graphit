@@ -2572,12 +2572,15 @@ local function BuildFrame()
   end
 
   -- OnUpdate (runs only while shown): row hover every frame. Hidden rows (collapsed tertiaries)
-  -- report IsMouseOver() false, so the hover pass is safe over all registered rows. FPS is measured
-  -- by the shared Graphit.fps meter instead (subscribed on show below), so the window and the
-  -- minimap button always read the same number.
+  -- report IsMouseOver() false, so the hover pass is safe over all registered rows. Gated on the
+  -- cursor being inside the scroll box's rect, so a row clipped at the top/bottom edge does not
+  -- light up when the cursor is over its off-screen half (rows extend past the box; it only clips
+  -- them visually). FPS is measured by the shared Graphit.fps meter instead (subscribed on show
+  -- below), so the window and the minimap button always read the same number.
   f:SetScript("OnUpdate", function()
+    local inBox = scrollBox:IsMouseOver()
     for _, row in ipairs(hoverRows) do
-      row.highlight:SetShown(row:IsMouseOver())
+      row.highlight:SetShown(inBox and row:IsMouseOver())
     end
   end)
 
