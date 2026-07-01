@@ -2047,6 +2047,12 @@ local function BuildFrame()
   f:EnableMouse(true)
   f:SetClampedToScreen(true)
 
+  -- ESC closes the window: WoW's ESC cascade calls CloseSpecialWindows, which hides every named
+  -- frame listed here. A plain frame needs nothing more (unlike an AceConfigDialog panel, which
+  -- taints CloseSpecialWindows and needs a proxy). The Hide() runs our OnHide, playing the close
+  -- sound, same as clicking the close button.
+  tinsert(UISpecialFrames, "GraphitFrame")
+
   -- Persist the frame's size and position to the SavedVariable (account-wide).
   local function SaveGeometry()
     Graphit_config = Graphit_config or {}
