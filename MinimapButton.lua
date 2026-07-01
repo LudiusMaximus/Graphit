@@ -11,7 +11,6 @@ local tinsert = _G.tinsert
 
 
 -- The button can show a live FPS number instead of the icon (right-click checkbox).
-local FPS_INTERVAL  = 0.25  -- averaging window, matching the window's readout
 -- Position of the number within the button, per digit count -- the two fonts differ
 -- in size, so each gets its own nudge.
 local FPS_SMALL_X, FPS_SMALL_Y = 0.5, 0   -- 1-2 digits (GameFontNormalSmall)
@@ -79,18 +78,33 @@ do
 
   -- The button can show a live FPS number in place of the icon, toggled by the
   -- right-click checkbox. SetMinimapDisplay() applies the saved choice; it runs on
-  -- registration and after every toggle. The button, its FPS font string, and the
-  -- ticker that measures FPS are assigned once the button exists (see below).
+  -- registration and after every toggle. The button and its FPS font string are
+  -- assigned once the button exists (see below).
   local minimapButton = nil
   local fpsText = nil
-  local ticker = nil
+
+  -- Paints the shared FPS value onto the button, picking the font by digit count -- the small
+  -- font for 1-2 digits, the tinier one so a 3-digit value still fits. Subscribed to the shared
+  -- meter (Graphit.fps) only while FPS mode is on, so it reads the same number as the window.
+  local function PaintMinimapFPS(fps)
+    if not fpsText then return end
+    fpsText:ClearAllPoints()
+    if fps >= 100 then
+      fpsText:SetFontObject(GameFontNormalTiny)
+      fpsText:SetPoint("CENTER", minimapButton, "CENTER", FPS_TINY_X, FPS_TINY_Y)
+    else
+      fpsText:SetFontObject(GameFontNormalSmall)
+      fpsText:SetPoint("CENTER", minimapButton, "CENTER", FPS_SMALL_X, FPS_SMALL_Y)
+    end
+    fpsText:SetText(fps)
+  end
 
   function Graphit.SetMinimapDisplay()
     if not minimapButton then return end
     local showFPS = Graphit_config.minimap.showFPS
     if minimapButton.icon then minimapButton.icon:SetShown(not showFPS) end
     fpsText:SetShown(showFPS)
-    ticker:SetShown(showFPS)
+    Graphit.fps.SetActive(PaintMinimapFPS, showFPS)
   end
 
   local iconFrame = CreateFrame("Frame")
@@ -150,33 +164,11 @@ do
           minimapButton.icon:SetPoint("CENTER", minimapButton, "CENTER", 0, 1)
         end
 
-        -- Just the number (no caption), the same value as the window's readout. A
-        -- hidden ticker measures it from real frame deltas (running only while FPS
-        -- mode is on) and picks the font by digit count -- the small font for 1-2
-        -- digits, the tinier one so a 3-digit value still fits the button.
+        -- Just the number (no caption), the same value as the window's readout: the shared
+        -- meter (Graphit.fps) drives it via PaintMinimapFPS while FPS mode is on.
         fpsText = minimapButton:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
         fpsText:SetPoint("CENTER", minimapButton, "CENTER", FPS_SMALL_X, FPS_SMALL_Y)
         fpsText:Hide()
-
-        local frames, elapsed = 0, 0
-        ticker = CreateFrame("Frame")
-        ticker:Hide()
-        ticker:SetScript("OnUpdate", function(_, dt)
-          frames, elapsed = frames + 1, elapsed + dt
-          if elapsed >= FPS_INTERVAL then
-            local fps = math.floor(frames / elapsed + 0.5)
-            fpsText:ClearAllPoints()
-            if fps >= 100 then
-              fpsText:SetFontObject(GameFontNormalTiny)
-              fpsText:SetPoint("CENTER", minimapButton, "CENTER", FPS_TINY_X, FPS_TINY_Y)
-            else
-              fpsText:SetFontObject(GameFontNormalSmall)
-              fpsText:SetPoint("CENTER", minimapButton, "CENTER", FPS_SMALL_X, FPS_SMALL_Y)
-            end
-            fpsText:SetText(fps)
-            frames, elapsed = 0, 0
-          end
-        end)
 
         Graphit.SetMinimapDisplay()
       end

@@ -178,6 +178,41 @@ end
 -- ===== Timing =====
 
 local FPS_INTERVAL   = 0.25   -- matches the game's FRAMERATE_FREQUENCY
+
+-- Shared FPS meter: one measurement the window portrait and the minimap button both read, so the
+-- two never disagree. A hidden driver counts real frame deltas over FPS_INTERVAL and pushes the
+-- rounded value to every active consumer; it runs only while at least one display wants it (the
+-- window open, or the minimap in FPS mode). A consumer calls SetActive(cb, shown) from its own
+-- show/hide and is painted the current value the moment it subscribes.
+Graphit.fps = {}
+do
+  local subs, active = {}, 0
+  local current = math.floor((GetFramerate() or 0) + 0.5)
+  local frames, elapsed = 0, 0
+  local driver = CreateFrame("Frame")
+  driver:Hide()
+  driver:SetScript("OnUpdate", function(_, dt)
+    frames, elapsed = frames + 1, elapsed + dt
+    if elapsed >= FPS_INTERVAL then
+      current = math.floor(frames / elapsed + 0.5)
+      frames, elapsed = 0, 0
+      for cb in pairs(subs) do cb(current) end
+    end
+  end)
+  function Graphit.fps.SetActive(cb, shown)
+    if shown and not subs[cb] then
+      subs[cb] = true
+      active = active + 1
+      cb(current)                                  -- paint the current value immediately
+      if active == 1 then frames, elapsed = 0, 0; driver:Show() end
+    elseif not shown and subs[cb] then
+      subs[cb] = nil
+      active = active - 1
+      if active == 0 then driver:Hide() end
+    end
+  end
+end
+
 -- Seconds to wait after changing a parent before refreshing its tertiaries: the
 -- engine cascades a secondary CVar to its raw CVars with a short delay (mirrors
 -- DumpSettings.SETTLE_DELAY).
@@ -2001,11 +2036,6 @@ end
 
 -- ===== Frame =====
 
--- "%.0f" rounds to the nearest integer; "%d" would truncate and read ~1 low.
-local function UpdateFPS(self, fps)
-  self.fpsText:SetText(("%.0f"):format(fps))
-end
-
 local function BuildFrame()
   local f = CreateFrame("Frame", "GraphitFrame", UIParent)
   -- First-ever size only; the corner floor clamps it up, and a saved geometry
@@ -2541,30 +2571,25 @@ local function BuildFrame()
     end
   end
 
-  -- OnUpdate (runs only while shown): row hover every frame, plus FPS measured
-  -- from real frame deltas over a short window so it tracks the true value within
-  -- FPS_INTERVAL (GetFramerate() is engine-smoothed and lags ~2-3s).
-  -- Hidden rows (collapsed tertiaries) report IsMouseOver() false, so the hover
-  -- pass is safe to run over all registered rows.
-  local fpsFrames, fpsElapsed = 0, 0
-  f:SetScript("OnUpdate", function(self, dt)
+  -- OnUpdate (runs only while shown): row hover every frame. Hidden rows (collapsed tertiaries)
+  -- report IsMouseOver() false, so the hover pass is safe over all registered rows. FPS is measured
+  -- by the shared Graphit.fps meter instead (subscribed on show below), so the window and the
+  -- minimap button always read the same number.
+  f:SetScript("OnUpdate", function()
     for _, row in ipairs(hoverRows) do
       row.highlight:SetShown(row:IsMouseOver())
     end
-    fpsFrames  = fpsFrames + 1
-    fpsElapsed = fpsElapsed + dt
-    if fpsElapsed >= FPS_INTERVAL then
-      UpdateFPS(self, fpsFrames / fpsElapsed)
-      fpsFrames, fpsElapsed = 0, 0
-    end
   end)
-  UpdateFPS(f, GetFramerate())  -- initial value before the first measured window
 
   f:Hide()  -- start hidden; the first Toggle shows it
   -- Open / close sounds, matching Blizzard's options windows. Hooked after the initial Hide above,
   -- so building the frame does not play the close sound.
   f:HookScript("OnShow", function() PlaySound(SOUNDKIT.IG_MAINMENU_OPEN) end)
   f:HookScript("OnHide", function() PlaySound(SOUNDKIT.IG_MAINMENU_CLOSE) end)
+  -- Portrait FPS via the shared meter (in step with the minimap button): active only while shown.
+  local function PaintPortraitFPS(fps) f.fpsText:SetText(fps) end
+  f:HookScript("OnShow", function() Graphit.fps.SetActive(PaintPortraitFPS, true) end)
+  f:HookScript("OnHide", function() Graphit.fps.SetActive(PaintPortraitFPS, false) end)
   return f
 end
 
